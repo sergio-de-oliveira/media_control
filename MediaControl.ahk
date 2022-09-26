@@ -2,6 +2,7 @@
 SendMode Input
 #InstallKeybdHook
 #UseHook On
+;Menu, Tray, Icon, ddores.dll, 28 ; this changes the tray icon to a little keyboard!
 Menu, Tray, Icon, shell32.dll, 283 ; this changes the tray icon to a little keyboard!
 #SingleInstance force ;only one instance of this script may run at a time!
 #MaxHotkeysPerInterval 2000
@@ -68,9 +69,14 @@ global vol_strip := 0.0
 global voicemeeter_open := 0    ; Try to track the status of the VoiceMeeter Window
                                 ; Might get out of sync if you manually Minimize or Show the VoiceMeeter window, so just hit Show/Hide hotkey toggle twice to fix
  
-OpenKeyboard()	 
-
 OpenMediaMouse()
+;WinWait, ahk_exe LuaMacros.exe   ; Wait for LuaMacros 
+
+OpenMediaVoicemeeter()
+;WinWait, ahk_exe LuaMacros.exe   ; Wait for MediaVoicemeeter 
+
+OpenKeyboard()
+;WinWait, ahk_exe LuaMacros.exe   ; Wait for LuaMacros 
 
 ;WinWait, ahk_exe LuaMacros.exe   ; Wait for voicemeeter
                                       ; Should be opening one way or another because of OpenVoicemeeter()
@@ -97,29 +103,45 @@ UnMuteVolume()          ; Make sure it's not Muted
 SetSpeakersOutput()     ; Select the Speakers as output, NOT Headphones, assuming you configured VoiceMeeter to have Speakers on A1 and Headphones on A2.  Change to however you like
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-OpenKeyboard() {
-    Process, Exist, keyboard_lua_script.lua
+OpenMediaVoicemeeter() {
+    Process, Exist, MediaVoicemeeter.exe
         If Not ErrorLevel
         {
-	        Run, LuaMacros.exe -r "C:\AHK\MediaControl\keyboard_lua_script.lua" ;"C:\AHK\MediaControl\2nd_keyboard.bat"
+	        Run, "MediaVoicemeeter.exe"
         }
         Else
         {
-            WinActivate, ahk_exe keyboard_lua_script.lua
+            WinActivate, MediaVoicemeeter.exe
+        }
+        Return
+}
+
+;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+OpenKeyboard() {
+    Process, Exist, LuaMacros.exe
+        If Not ErrorLevel
+        {
+	        Run, LuaMacros.exe "C:\AHK\MediaControl\keyboard_lua_script.lua"
+            Sleep, 1000
+            Send ^{Enter}
+        }
+        Else
+        {
+            WinActivate, ahk_exe LuaMacros.exe
         }
         Return
 }
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 OpenMediaMouse() {
-    Process, Exist, Media_Mouse.exe
+    Process, Exist, MediaMouse.exe
         If Not ErrorLevel
         {
 	        Run, "MediaMouse.exe"
         }
         Else
         {
-            WinActivate, Media_Mouse.exe
+            WinActivate, MediaMouse.exe
         }
         Return
 }

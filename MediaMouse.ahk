@@ -1,5 +1,6 @@
 ﻿#MaxHotkeysPerInterval 200
 #Include AHKHID.ahk
+Menu, Tray, Icon, ddores.dll, 30 ; this changes the tray icon to a little keyboard!
 
 ;get_hid()
 
@@ -7,19 +8,22 @@
 ;iCount := AHKHID_GetDevCount()
 LastMouseState := ""
 LButtonState := "LButtonState_solto"
+RButtonState := "RButtonState_solto"
+WheelMidState := "WheelMid_solto"
+KeyBoarID_bright := "\\?\HID#VID_04D9&PID_A01C&MI_01&Col01#8&15884e3e&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd}"
 
 ;Set up the constants
 AHKHID_UseConstants()
 md := new mouseDelta(func("f"))
 Mouse2_ID := ""
 md.start()
-wheelup::
-wheeldown::
+WheelUp::
+WheelDown::
 XButton1::
 XButton2::
-MButton::
-LButton::
-RButton::
+;MButton::
+;LButton::
+;RButton::
 return
 ;esc::exitapp
 
@@ -151,12 +155,6 @@ Class MouseDelta
 		
 		;this.Callback.(ThisMouse, dx, dy, usButtonFlags, usButtonData)
 		
-		Mouse := MouseName(ThisMouse)
-		MouseID := between(Mouse, "\\?\HID#", "0005#")
-		
-		;MsgBox, %MouseID%
-		;MsgBox, %usButtonFlags%
-		
 		; \\?\HID#VID_1BCF&PID_0005#7&35a657bd&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd} (3D Mouse Happens)
 		; \\?\HID#VID_046D&PID_C53F&MI_01&Col01#8&390bcb53&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd} (G305)
 		; \\?\HID#VID_04D9&PID_A01C&MI_01&Col01#8&35678ec0&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd} (Mouse Bright)
@@ -165,74 +163,195 @@ Class MouseDelta
 
 		MouseID_g305 := "\\?\HID#VID_046D&PID_C53F&MI_01&Col01#8&390bcb53&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd}"
 		MouseID_3d := "\\?\HID#VID_1BCF&PID_0005#7&35a657bd&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd}"
-		MouseID_bright := "\\?\HID#VID_04D9&PID_A01C&MI_01&Col01#8&35678ec0&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd}"
+		MouseID_bright := "\\?\HID#VID_04D9&PID_A01C&MI_01&Col01#8&15884e3e&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd}"
 
-		;if(MouseID = "VID_1BCF&PID_") {
-		if((Mouse = MouseID_3d) || (Mouse = MouseID_bright)) {
-			if (usButtonData = 120) {
+		;KeyBoarID_bright := "\\?\HID#VID_04D9&PID_A01C&MI_00#8&2583200&0&0000#{884b96c3-56ef-11d1-bc8c-00a0c91405dd}"
+
+		Mouse := KeyboardName(ThisMouse)
+		;MouseID := between(Mouse, "\\?\HID#", "0005#")
+		MouseID := MouseID_3d
+		
+		;Handle := NumGet(&uRawInput, 2 * 4, "UInt")
+		;MsgBox, %Handle%
+
+		;HID0 = 1
+		;HID%HID0%_Name   := AHKHID_GetDevName(HID0)
+		;MsgBox, HID%HID0%_Name
+		
+		;MsgBox, %MouseID%
+		;MsgBox, %Mouse%
+		;MsgBox, %usButtonFlags%
+
+		if(Mouse = MouseID_3d)
+		{
+			if (usButtonData = 120) ;whell up
+			{
 				Send {Volume_Up}
 			} 
-			else if (usButtonData = -120) {
+			else if (usButtonData = -120) ;whell down
+			{
 				Send {Volume_Down}
 			}
-			else if (usButtonFlags = 256) {
+			;else if (usButtonFlags = 256) ;botao forwad
+			;{
 				;Send {Media_Next}
-			}
-			else if (usButtonFlags = 64) {
+			;}
+			;else if (usButtonFlags = 64) ;botao backward
+			;{
 				;Send {Media_Prev}
-			}
-			else if (usButtonFlags = 32) {
+			;}
+			else if (usButtonFlags = 32) ;whell click down
+			{
 				;Send {Media_Play_Pause}
 			}
-		}	
-		else if(Mouse = MouseID_g305) {
-			if (usButtonData = 120) { ;whell up
-				MouseClick, WheelUp
+		}
+		if(Mouse = MouseID_bright)
+		{
+			if (usButtonData = 120) ;whell up
+			{
+				Send {Volume_Up}
+			} 
+			else if (usButtonData = -120) ;whell down
+			{
+				Send {Volume_Down}
 			}
-			else if (usButtonData = -120) { ;whell down
-				MouseClick, WheelDown
+			;else if (usButtonFlags = 256) ;botao forwad
+			;{
+				;Send {Media_Next}
+			;}
+			;else if (usButtonFlags = 64) ;botao backward
+			;{
+				;Send {Media_Prev}
+			;}
+			else if (usButtonFlags = 32) ;whell click down
+			{
+				;Send {Media_Play_Pause}
 			}
-			else if (usButtonFlags = 256) { ;botao forwad
+		}
+		else if(Mouse = MouseID_g305)
+		{
+		 	if (usButtonData = 120) ;whell up
+			{
+		 		MouseClick, WheelUp
+		 	}
+		 	else if (usButtonData = -120) ;whell down
+			{
+		 		MouseClick, WheelDown
+		 	}
+			else if (usButtonFlags = 256) ;botao forwad
+			{
 				Send {XButton2}
 			}
-			else if (usButtonFlags = 64) { ;botao back
+			else if (usButtonFlags = 64) ;botao backward
+			{
 				Send {XButton1}
 			}
-			else if (usButtonFlags = 32) { ;whell mid
-				Send {MButton}
+			else if (usButtonFlags = 32) ;whell click up
+			{
+				if (WheelMidState != "WheelMid_solto")
+				{
+					if(GetKeyState("LShift", "P"))
+					{
+						Send {LShift Up}
+					}
+					if(GetKeyState("Ctrl", "P"))
+					{
+						Send {LCtrl Up}
+					}
+				}
+				;Send {RButton Up}
+  				WheelMidState := "WheelMid_solto"
 			}
-			else if (usButtonFlags = 8) { ;botao direito solto
-				;MouseClick, right
+			else if (usButtonFlags = 16) ;whell click up
+			{
+				if (WheelMidState != "WheelMid_clicado")
+				{
+					MouseClick, middle
+					if(GetKeyState("LShift", "P"))
+					{
+						Send {LShift Up}
+					}
+					if(GetKeyState("Ctrl", "P"))
+					{
+						Send {LCtrl Up}
+					}
+				}
+				;Send {RButton Up}
+  				WheelMidState := "WheelMid_clicado"
 			}
-			else if (usButtonFlags = 4) { ;botao direito clicado
-				MouseClick, right
+			else if (usButtonFlags = 8) ;botao direito solto------------------------------------------------------------
+			{
+				if (RButtonState != "RButtonState_solto")
+				{
+					if(GetKeyState("LShift", "P"))
+					{
+						Send {LShift Up}
+					}
+					if(GetKeyState("Ctrl", "P"))
+					{
+						Send {LCtrl Up}
+					}
+				}
+				;Send {RButton Up}
+  				RButtonState := "RButtonState_solto"	
 			}
-			else if (usButtonFlags = 2) { ;botao esquerdo solto
+			else if (usButtonFlags = 4) ;botao direito clicado------------------------------------------------------------
+			{
+				if (RButtonState != "RButtonState_clicado")
+				{
+					if(GetKeyState("LShift", "P"))
+					{
+						Send {LShift Down}
+					}
+					if(GetKeyState("LCtrl", "P"))
+					{
+						Send {LCtrl Down}
+					}
+				}
+				;Send {RButton Down}
+				RButtonState := "RButtonState_clicado"
+			}
+			else if (usButtonFlags = 2) ;botao esquerdo solto------------------------------------------------------------
+			{
 				if (LButtonState != "LButtonState_solto")
 				{
-					Send {LButton Up}
+					if(GetKeyState("Shift", "P"))
+					{
+						Send {LShift Up}
+					}
+					if(GetKeyState("Ctrl", "P"))
+					{
+						Send {LCtrl Up}
+					}
 				}
-				if(!GetKeyState("Shift", "P"))
-				{
-					Send {Shift Up}
-				}
+				;Send {LButton Up}
   				LButtonState := "LButtonState_solto"			
 			}
-			else if (usButtonFlags = 1) { ;botao esquerdo clicado
+			else if (usButtonFlags = 1) ;botao esquerdo clicado------------------------------------------------------------
+			{
 				if (LButtonState != "LButtonState_clicado")
 				{
 					if(GetKeyState("Shift", "P"))
 					{
-						Send {ShiftDown}
+						Send {LShift Down}
 					}
-					Else
+					if(GetKeyState("Ctrl", "P"))
 					{
-						Send {LButton Down}
+						Send {LCtrl Down}
 					}
 				}
+				;Send {LButton Down}
 				LButtonState := "LButtonState_clicado"
 			}
 		}
+		; else if(HID1_Name == KeyBoarID_bright)
+		; {
+		; 	;MsgBox, "OK!!!"
+		; 	if(GetKeyState("X", "P"))
+		; 	{
+		; 		MsgBox, "OK!!!"
+		; 	}
+		; }
 	}
 }
 
@@ -254,6 +373,13 @@ between(string, left, right) {
 }
 
 MouseName(h) {
+	DllCall("GetRawInputDeviceInfo",Int,h,UInt,0x20000007,Int,0,"UInt*",l)
+	VarSetCapacity(Name,l*2+2)
+	DllCall("GetRawInputDeviceInfo",Int,h,UInt,0x20000007,Str,Name,"UInt*",l)
+	return Name
+}
+
+KeyboardName(h) {
 	DllCall("GetRawInputDeviceInfo",Int,h,UInt,0x20000007,Int,0,"UInt*",l)
 	VarSetCapacity(Name,l*2+2)
 	DllCall("GetRawInputDeviceInfo",Int,h,UInt,0x20000007,Str,Name,"UInt*",l)
@@ -317,3 +443,47 @@ get_hid() {
 ;MButton::
 	;Send {Media_Play_Pause}
 ;return
+
+;c::
+;	Send {LShift}
+
+; LControl::
+; sendInput, {LControl Down}
+; while Getkeystate("LControl","P")
+;     sleep, 100
+; sendInput, {LControl Up}
+; return
+
+; ~$LButton::
+; While GetKeyState("LButton","P")
+; {
+;     Click Left   
+; }
+; return
+
+; ~$RButton::
+; While GetKeyState("RButton","P")
+; {
+;     Click Right   
+; }
+; return
+
+;LSHIFT::
+	;Type := NumGet(Buffer, 0 * 4, "UInt")
+	;Size := NumGet(Buffer, 1 * 4, "UInt")
+	;Handle := NumGet(Buffer, 2 * 4, "UInt")
+	;HID0 := 1
+    ; HID%HID0%_Handle := AHKHID_GetDevHandle(HID0)
+    ; HID%HID0%_Type   := AHKHID_GetDevType(HID0)
+    ; HID%HID0%_Name   := AHKHID_GetDevName(HID0)
+	;Keyboard_Name := AHKHID_GetDevName(2)
+	;Res := DllCall("GetRawInputDeviceInfo", "Ptr", Handle, "UInt", RIDI_DEVICENAME, "Ptr", 0, "UInt *", nLength)
+	;MsgBox, %res%
+	;If (Keyboard_Name = KeyBoarID_bright)
+	;{
+		;MsgBox, "OK!!!"
+		; if(GetKeyState("esc", "P"))
+		; {
+		; 	MsgBox, "OK!!!"
+		; }
+	;}

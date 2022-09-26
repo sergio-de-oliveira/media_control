@@ -5,9 +5,7 @@
 -- plug in your 2nd keyboard, load this script into LUAmacros, and press the triangle PLAY button.
 -- Then, press any key on that keyboard to assign logical name ('MACROS') to macro keyboard
 clear() --clear the console from last run
-local keyboardIdentifier = '884B96C3'
--- 7&AD4961
-
+local keyboardIdentifier = '0000AAA' -- '0000AAA' -- '884B96C3'
 
 --You need to get the identifier code for the keyboard with name "MACROS"
 --This appears about halfway through the SystemID item and looks like 1BB382AF or some other alphanumeric combo.
@@ -34,7 +32,7 @@ lmc.minimizeToTray = true
 --Start Script
 sendToAHK = function (key)
       --print('It was assigned string:    ' .. key)
-      local file = io.open("C:\\AHK\\2nd-keyboard\\LUAMACROS\\keypressed.txt", "w") -- writing this string to a text file on disk is probably NOT the best method. Feel free to program something better!
+      local file = io.open("C:\\AHK\\MediaControl\\keypressed.txt", "w") -- writing this string to a text file on disk is probably NOT the best method. Feel free to program something better!
       --If you didn't put your AutoHotKey scripts into C:/AHK, Make sure to substitute the path that leads to your own "keypressed.txt" file, using the double backslashes.
 	  --print("we are inside the text file")
       file:write(key)
@@ -106,7 +104,6 @@ local config = {
     [20]  = "capslock",
     [18]  = "alt",
 
-
 	[string.byte('Q')] = "q",
 	[string.byte('W')] = "w",
 	[string.byte('E')] = "e",
@@ -133,17 +130,16 @@ local config = {
 	[string.byte('B')] = "b",
 	[string.byte('N')] = "n",
 	[string.byte('M')] = "m",
-
-    [string.byte('0')] = "0",
+	[string.byte('0')] = "0",
 	[string.byte('1')] = "1",
 	[string.byte('2')] = "2",
 	[string.byte('3')] = "3",
 	[string.byte('4')] = "4",
 	[string.byte('5')] = "5",
-    [string.byte('6')] = "6",
-    [string.byte('7')] = "7",
-    [string.byte('8')] = "8",
-    [string.byte('9')] = "9",
+	[string.byte('6')] = "6",
+	[string.byte('7')] = "7",
+	[string.byte('8')] = "8",
+	[string.byte('9')] = "9",
 
 	--[255] = "printscreen" --these keys do not work
 }
@@ -166,4 +162,3 @@ end)
 print('Version: ' .. lmc.version)
 lmc.minimizeToTray = true
 lmc_minimize()
-

@@ -30,6 +30,8 @@ If bVista
 Gui, Tab, 3
 Gui, Add, ListView, x16 y40 w440 h150 vlvwOther gLV_Event, Name|Vendor ID|Product ID|Version Number|Usage Page|Usage
 
+ProjectList := "|"
+
 ;Set up the constants
 AHKHID_UseConstants()
 
@@ -60,6 +62,7 @@ Loop %iCount% {
         HID%HID0%_FunctionKeys  := AHKHID_GetDevInfo(HID0, DI_KBD_NUMBEROFFUNCTIONKEYS)
         HID%HID0%_Indicators    := AHKHID_GetDevInfo(HID0, DI_KBD_NUMBEROFINDICATORS)
         HID%HID0%_KeysTotal     := AHKHID_GetDevInfo(HID0, DI_KBD_NUMBEROFKEYSTOTAL)
+        ProjectList .= "|" HID%HID0%_Name
     } Else If (HID%HID0%_Type = RIM_TYPEHID) {
         HID%HID0%_VendorID      := AHKHID_GetDevInfo(HID0, DI_HID_VENDORID)
         HID%HID0%_ProductID     := AHKHID_GetDevInfo(HID0, DI_HID_PRODUCTID)
@@ -67,6 +70,7 @@ Loop %iCount% {
         HID%HID0%_UsagePage     := AHKHID_GetDevInfo(HID0, DI_HID_USAGEPAGE)
         HID%HID0%_Usage         := AHKHID_GetDevInfo(HID0, DI_HID_USAGE)
     }
+    
 }
 
 ;Add to listviews according to type
@@ -89,6 +93,8 @@ Loop %HID0% {
 
 ;Adjust column width
 Gui, ListView, lvwMouse
+Gui, Add, DropDownList, x180 y10 w600 vProject, Select%ProjectList%
+;Gui, Add, DropDownList, vColorChoice, Red|Green|Blue|Black|White ;Gui, Add, ComboBox, vColorChoice, Red|Green|Blue|Black|White
 Loop 5
     LV_ModifyCol(A_Index, "AutoHdr")
 Gui, ListView, lvwKeyb
