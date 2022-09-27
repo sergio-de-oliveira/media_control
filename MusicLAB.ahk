@@ -1,55 +1,38 @@
-#NoEnv
-SendMode Input
+/*
+ *************************************************************************************
+ *                                MUSIC LAB SCRIPT                                   *
+ *************************************************************************************
+ */
+
+; ------------------------------ Includes --------------------------------------------
+
+#Include VMR.ahk
+#Include AHKHID.ahk
+
+; ------------------------------ Definitions -----------------------------------------
+
+;#Warn	; Enable warnings to assist with detecting common errors.
+#NoEnv	; Recommended for performance and compatibility with future AutoHotkey releases.
 #InstallKeybdHook
 #UseHook On
 ;Menu, Tray, Icon, shell32.dll, 283 ; this changes the tray icon to a little keyboard!
 Menu, Tray, Icon, DDORes.dll, 28 ; this changes the tray icon to a little keyboard!
-#SingleInstance force ;only one instance of this script may run at a time!
-#MaxHotkeysPerInterval 2000
-#WinActivateForce ;https://autohotkey.com/docs/commands/_WinActivateForce.htm
-
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-; HELLO, poeple who want info about making a second keyboard, using luamacros!
-
-; Here's my LTT video about how I use the 2nd keyboard with Luamacros: https://www.youtube.com/watch?v=Arn8ExQ2Gjg
-
-; And Tom's video, which unfortunately does not have info on how to actually DO it: https://youtu.be/lIFE7h3m40U?t=16m9s
-
-; If you have never used AutoHotKey, you must take this tutorial before proceeding!
-; https://autohotkey.com/docs/Tutorial.htm
-
-; So you will need luamacros, of course.
-; Luamacros: http://www.hidmacros.eu/forum/viewtopic.php?f=10&t=241#p794
-; AutohotKey: https://autohotkey.com/
-
-; However, I no longer use luamacros, because I believe interecept.exe is even better! My current code is available in "ALL_MULTIPLE_KEYBOARD_ASSIGNMENTS.ahk"
-
-; Lots of other explanatory videos other AHK scripts can be found on my youtube channel! https://www.youtube.com/user/TaranVH/videos 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-;=========================================================================================
-; Env Setup
-;=========================================================================================
+#SingleInstance force	;only one instance of this script may run at a time!
+#MaxHotkeysPerInterval 200	; Allow more hotkeys in rapid succession... helps with the scroll wheel
+#WinActivateForce	; https://autohotkey.com/docs/commands/_WinActivateForce.htm
 #Persistent
-#Include VMR.ahk
-#Include AHKHID.ahk
-;#Include VA.ahk
-;#NoEnv                        ; Recommended for performance and compatibility with future AutoHotkey releases.
-;#Warn                         ; Enable warnings to assist with detecting common errors.
-SendMode Input                ; Recommended for new scripts due to its superior speed and reliability.
-SetWorkingDir %A_ScriptDir%   ; Ensures a consistent starting directory.
-;#SingleInstance Force         ; Determines whether a script is allowed to run again when it is already running. "Force" skips the dialog box and replaces the old instance automatically
-#MaxHotkeysPerInterval 200    ; Allow more hotkeys in rapid succession... helps with the scroll wheel
-DetectHiddenWindows, On       ; Allow detecting Windows that are minimized to Tray (such as Voicemeeterpro.exe)
+SendMode Input	; Recommended for new scripts due to its superior speed and reliability.
+SetWorkingDir %A_ScriptDir%	; Ensures a consistent starting directory.
+DetectHiddenWindows, On	; Allow detecting Windows that are minimized to Tray (such as Voicemeeterpro.exe)
 
-global media_mode	:= 0
+; ------------------------------ Variables -------------------------------------------
+
+; ---------- VoiceMeeter
+global media_mode	:= 0 
 global modeMusic	:= 0
 global modeLema		:= 1
-global modeAltium 	:= 2
+global modeAltium	:= 2
 
-;=========================================================================================
-; VoiceMeeter DEFINES
-;=========================================================================================
 global BUS_1 := 0
 global BUS_2 := 1
 global BUS_3 := 2
@@ -70,33 +53,6 @@ global A3_equalizer_state := "ON"
 global A4_equalizer_state := "ON"
 global A5_equalizer_state := "ON"
 
-;global DEVICE_PA := "FONE (HECATE G1 GAMING HEADSET)" ; 2
-;global DEVICE_HECATE := ""
-;global DEVICE_AIRDOTS := ""
-;global DEVICE_T7 := ""
-
-;SoundSet, +2 , MASTER, VOLUME, 2 ;PA
-;SoundSet, +2 , MASTER, VOLUME, 9 ;HECATE
-;SoundSet, +2 , MASTER, VOLUME, 4 ;AIRDOTS
-;SoundSet, +1 , MASTER, VOLUME, 3 ;T7
-
-;=========================================================================================
-; Mouse DEFINES
-;=========================================================================================
-LastMouseState := ""
-LButtonState := "LButtonState_solto"
-RButtonState := "RButtonState_solto"
-WheelMidState := "WheelMid_solto"
-KeyBoarID_bright := "\\?\HID#VID_04D9&PID_A01C&MI_01&Col01#8&15884e3e&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd}"
-
-;=========================================================================================
-; VoiceMeeter Remote API Connection & Variable Initialization
-;=========================================================================================
-CircleProgress := new CircleProgressClass()
-voicemeeter := new VMR()
-voicemeeter.login()
-voicemeeter.recorder["mode.PlayOnLoad"]:=true	
- 
 global discord_mute_file := "\sounds\discord_mute.mp3"
 global discord_unmute_file := "\sounds\discord_unmute.mp3"
 global volume_up_file := "\sounds\volume_up.wav"
@@ -105,60 +61,61 @@ global mute := 1.0
 global vol_strip := 0.0
 global voicemeeterVisible := 0
 global voicemeeter_open := 0    ; Try to track the status of the VoiceMeeter Window
-                                ; Might get out of sync if you manually Minimize or Show the VoiceMeeter window, so just hit Show/Hide hotkey toggle twice to fix
-;Set up the constants
-AHKHID_UseConstants()
-md := new mouseDelta(func("f"))
+
+;global DEVICE_PA := "FONE (HECATE G1 GAMING HEADSET)" 	;id=2
+;global DEVICE_HECATE := ""								;id=9
+;global DEVICE_AIRDOTS := "" 							;id=4
+;global DEVICE_T7 := "" 								;id=3
+
+; ---------- Mouse
+LastMouseState := ""
+LButtonState := "LButtonState_solto"
+RButtonState := "RButtonState_solto"
+WheelMidState := "WheelMid_solto"
+KeyBoarID_bright := "\\?\HID#VID_04D9&PID_A01C&MI_01&Col01#8&15884e3e&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd}"
 Mouse2_ID := ""
 
-;;WheelUp::
-;;WheelDown::
-;;XButton1::
-;;XButton2::
-;MButton::
-;LButton::
-;RButton::
-;return
 
-;OpenMediaMouse()
-;WinWait, ahk_exe MediaMouse.exe   ; Wait for luamacros
+; ------------------------------ Initialization --------------------------------------
 
-;WinWait, ahk_exe LuaMacros.exe   ; Wait for voicemeeter
-                                      ; Should be opening one way or another because of OpenVoicemeeter()
-;OpenVoicemeeter()       ; Call OpenVoicemeeter function to ensure Voicemeeter is running before the rest of the script executes
-                        ; Will launch if closed, or bring to foreground if already running
-                        ; Either way, the DllLoad should always work because Voicemeeter will be running
+AHKHID_UseConstants() ; Set up the constants
 
-;WinWait, ahk_exe voicemeeterpro.exe   ; Wait for voicemeeter
-                                      ; Should be opening one way or another because of OpenVoicemeeter()
+voicemeeterInit()
 
-DllLoad := DllCall("LoadLibrary", "Str", "C:\Program Files (x86)\VB\Voicemeeter\VoicemeeterRemote64.dll")   ; Set this to your VoiceMeeter install directory
+mouseInit()	
 
+DefaultMusicSettings()	; Set default voicemeeter settings
 
-VMLogin()               ; Connect to VoiceMeeter
+KeyboardInit() ; 2nd keyboard with Luamacros: https://www.youtube.com/watch?v=Arn8ExQ2Gjg
 
-OnExit("VMLogout")      ; When script exists, disconnect from VoiceMeeter
+; ------------------------------ Implementation --------------------------------------
 
-; Set Initial State
-DefaultMusicSettings()         ; Set default voicemeeter settings
+;====================================================================================================================================================
+; VOICEMEETER
+;====================================================================================================================================================
 
-;UnMuteVolume()          ; Make sure it's not Muted
+voicemeeterInit()
+{
+	global voicemeeter := new VMR()
+	voicemeeter.login()
+	voicemeeter.recorder["mode.PlayOnLoad"] := true
+	DllLoad := DllCall("LoadLibrary", "Str", "C:\Program Files (x86)\VB\Voicemeeter\VoicemeeterRemote64.dll")   ; Set this to your VoiceMeeter install directory
 
-;SetSpeakersOutput()     ; Select the Speakers as output, NOT Headphones, assuming you configured VoiceMeeter to have Speakers on A1 and Headphones on A2.  Change to however you like
+	VMLogin()               ; Connect to VoiceMeeter
 
-md.start()
+	OnExit("VMLogout")      ; When script exists, disconnect from VoiceMeeter
+}
 
-OpenKeyboard() 
-;WinWait, ahk_exe LuaMacros.exe   ; Wait for luamacros
+DefaultMusicSettings()
+{
+	SetNumLockState, Off
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-DefaultMusicSettings() {
 	; Out BUS Assignation -----------------------------------------
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].A1", "Float", 1.0)
 
 	; Gain slider -------------------------------------------------
     Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Gain", "Float", 12.0)   ; Set the Microphone
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 12.0)   ; Set the HDL Line In volume
+	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 0.0)   ; Set the HDL Line In volume
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Gain", "Float", -60.0)  ; Set the Imput3 volume
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].Gain", "Float", -60.0)  ; Set the Imput4 volume
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[4].Gain", "Float", -60.0)  ; Set the Imput5 volume
@@ -191,14 +148,14 @@ DefaultMusicSettings() {
 	tippy(show_message)
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-DefaultLemaSettings() {
+DefaultLemaSettings()
+{
 	; Out BUS Assignation -----------------------------------------
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].A1", "Float", 0.0)
 
 	; Gain slider -------------------------------------------------
     Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Gain", "Float", 12.0)   ; Set the Microphone
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 12.0)   ; Set the HDL Line In volume
+	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 0.0)   ; Set the HDL Line In volume
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Gain", "Float", -60.0)  ; Set the Imput3 volume
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].Gain", "Float", -60.0)  ; Set the Imput4 volume
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[4].Gain", "Float", -60.0)  ; Set the Imput5 volume
@@ -231,14 +188,14 @@ DefaultLemaSettings() {
 	tippy(show_message)
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-DefaultAltiumSettings() {
+DefaultAltiumSettings()
+{
 	; Out BUS Assignation -----------------------------------------
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].A1", "Float", 1.0)
 
 	; Gain slider -------------------------------------------------
     Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Gain", "Float", 12.0)   ; Set the Microphone
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 12.0)   ; Set the HDL Line In volume
+	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 0.0)   ; Set the HDL Line In volume
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Gain", "Float", -60.0)  ; Set the Imput3 volume
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].Gain", "Float", -60.0)  ; Set the Imput4 volume
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[4].Gain", "Float", -60.0)  ; Set the Imput5 volume
@@ -271,48 +228,16 @@ DefaultAltiumSettings() {
 	tippy(show_message)
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-OpenKeyboard() {
-    Process, Exist, LuaMacros.exe
-        If Not ErrorLevel
-        {
-	        Run "C:\AHK\MediaControl\keyboard_lua_script.lua"
-            Sleep, 500
-            Send ^{Enter}
-        }
-        Else
-        {
-            WinActivate, ahk_exe LuaMacros.exe
-        }
-        Return
-}
-
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-OpenMediaMouse() {
-    Process, Exist, MediaMouse.exe
-        If Not ErrorLevel
-        {
-	        Run, "MediaMouse.exe"
-        }
-        Else
-        {
-            Run MediaMouse.exe
-			WinWait ahk_exe MediaMouse.exe
-        }
-        Return
-}
-
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-VMLogin() {
+VMLogin()
+{
     Login := DllCall("VoicemeeterRemote64\VBVMR_Login")
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-VMLogout() {
+VMLogout()
+{
     Logout := DllCall("VoicemeeterRemote64\VBVMR_Logout")
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 OpenVoicemeeter()
 {
     IfWinExist ahk_exe voicemeeter8x64.exe   ; If VoiceMeeter is already running, bring it up from the Tray and bring it to Foreground
@@ -329,26 +254,23 @@ OpenVoicemeeter()
     }
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 ShowVoicemeeter()
 {
     IfWinExist ahk_exe voicemeeter8x64.exe   ; If VoiceMeeter is already running, bring it up from the Tray and bring it to Foreground
     {
-        WinShow ahk_exe voicemeeter8x64.exe
-        WinActivate ahk_exe voicemeeter8x64.exe   ; Sometimes WinShow does not bring it in front of say, Spotify. So running WinActivate right after gives it focus and brings it all the way to the foreground
+        WinShow, ahk_exe voicemeeter8x64.exe
+        WinActivate, ahk_exe voicemeeter8x64.exe   ; Sometimes WinShow does not bring it in front of say, Spotify. So running WinActivate right after gives it focus and brings it all the way to the foreground
     }
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 HideVoicemeeter()
 {
     IfWinExist ahk_exe voicemeeter8x64.exe   ; If VoiceMeeter is already running, bring it up from the Tray and bring it to Foreground
     {		
-    	WinHide ahk_exe voicemeeter8x64.exe   ; Hide VoiceMeeter back into the Tray.  This assumes you configured VoiceMeeter to "minimize to tray" rather than taskbar in it's settings
+    	WinHide, ahk_exe voicemeeter8x64.exe   ; Hide VoiceMeeter back into the Tray.  This assumes you configured VoiceMeeter to "minimize to tray" rather than taskbar in it's settings
 	}
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 WaitForNotDirty()
 {
     Loop
@@ -361,15 +283,17 @@ WaitForNotDirty()
     }
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-GetVolume(channel_type, channel) {
+GetVolume(channel_type, channel)
+{
     WaitForNotDirty()   
                                                                                                   ; Make sure the VoiceMeeter parameters are not dirty before querying anything
-	if(channel_type = "STRIP") {
+	if(channel_type = "STRIP")
+	{
 		channel_id = Strip[%channel%].Gain
 	}
 	else
-	if(channel_type = "BUS") {
+	if(channel_type = "BUS")
+	{
 		channel_id = Bus[%channel%].Gain	
 	}
 
@@ -383,34 +307,42 @@ GetVolume(channel_type, channel) {
     return volume
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-SetVolume(channel_type, channel, vol) {
-	if(channel_type = "STRIP") {
+SetVolume(channel_type, channel, vol)
+{
+	if(channel_type = "STRIP")
+	{
 		channel_id = Strip[%channel%].Gain
 	}
 	else
-	if(channel_type = "BUS") {
+	if(channel_type = "BUS")
+	{
 		channel_id = Bus[%channel%].Gain	
 	}
-	
+
 	volume := GetVolume(channel_type, channel)
 	
-	if (vol = "up") {
+	if (vol = "up")
+	{
 		volume += 4.0
 		load_sound_vol_up(channel_type, channel)
 		CircleProgress.Update(A_Index, "Downloading`nAutoHotkey.exe`n`n" A_Index "% done")
 	}
-	else if(vol = "down") {
+	else if(vol = "down")
+	{
 		volume -= 4.0
 		load_sound_vol_down(channel_type, channel)
 	}
-	else if(vol = "0") {
+	else if(vol = "0")
+	{
 		volume = 0.0
 		load_sound_vol_down(channel_type, channel)
 	}
-    if (volume > 12.0) {                ; If the volume is trying to go above 12.0, set it back to 12.0 as a Max
+    if (volume > 12.0)
+	{                ; If the volume is trying to go above 12.0, set it back to 12.0 as a Max
         volume := 12.0
-    } else if (volume < -60.0) {        ; If the volume is trying to go below -60.0, set it back to -60.0 as the Min
+    }
+	else if (volume < -60.0)
+	{        ; If the volume is trying to go below -60.0, set it back to -60.0 as the Min
         volume := -60.0
     }
 	show_message = vol = %volume%
@@ -418,21 +350,24 @@ SetVolume(channel_type, channel, vol) {
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", channel_id, "Float", volume)   ; Set the Speakers to vol_lvl
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-GetIsMuted(channel_type, channel) {
+GetIsMuted(channel_type, channel)
+{
     WaitForNotDirty()                                                                                                     ; Make sure the VoiceMeeter parameters are not dirty before querying anything
 
     is_muted := 0.0                                                                                                       ; Initialize variable
     NumPut(0.0, is_muted, 0, "Float")                                                                                     ; Force it to be a float
                                                                                                                           ; The POINTER to the variable is_muted is being sent to the Dll                                                 
-    if(channel_type = "STRIP") {
+    if(channel_type = "STRIP")
+	{
 		channel_id = Strip[%channel%].Mute
 	}
-	else if(channel_type = "BUS") {
+	else if(channel_type = "BUS")
+	{
 		bus_id := channel
 		channel_id = Bus[%bus_id%].Mute
 	}
-	else if(channel_type = "ALL") {
+	else if(channel_type = "ALL")
+	{
 		bus_id := channel
 		channel_id = Bus[%bus_id%].Mute
 	}
@@ -442,23 +377,20 @@ GetIsMuted(channel_type, channel) {
     return is_muted                            ; For some reason, not doing this makes the variable unusable              
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-MuteVolume() {
-	;tippy("MIC OFF")
+MuteVolume()
+{
     Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Mute", "Float", 1.0)   ; Sets Speaker Mute button to On
-    ;Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[1].Mute", "Float", 1.0)   ; Sets Headphone Mute button to On
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-UnMuteVolume() {
-	;tippy("MIN ON")
+UnMuteVolume()
+{
     Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Mute", "Float", 0.0)   ; Sets Speaker Mute button to Off
-    ;Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[1].Mute", "Float", 0.0)   ; Sets Headphone Mute button to Off
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-SetMuteVolume(channel_type, channel ,osd) {
-	if(GetIsMuted(channel_type, channel)) {
+SetMuteVolume(channel_type, channel ,osd)
+{
+	if(GetIsMuted(channel_type, channel))
+	{
 		mute := 0.0
 		NumPut(0.0, mute, 0, "Float")                                                                                     ; Force it to be a float
 		;show_message = IN %channel% ON
@@ -466,7 +398,8 @@ SetMuteVolume(channel_type, channel ,osd) {
 		tippy(show_message)
 		load_sound_discord_unmute()
 	}
-	else {
+	else
+	{
 		mute := 1.0
 		NumPut(1.0, mute, 1, "Float")                                                                                     ; Force it to be a float
 		;show_message = IN %channel% OFF
@@ -475,17 +408,20 @@ SetMuteVolume(channel_type, channel ,osd) {
 		load_sound_discord_mute()
 		Sleep, 300
 	}
-	if(channel_type = "STRIP") {
+	if(channel_type = "STRIP")
+	{
 		channel_id = Strip[%channel%].Mute
 		Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", channel_id, "Float", mute)   ; Sets Speaker Mute button to On
 	}
-	else if(channel_type = "BUS") {
+	else if(channel_type = "BUS")
+	{
 		bus_id := channel
 		channel_id = Bus[%bus_id%].Mute	
 		;tippy(bus_id)
 		Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", channel_id, "Float", mute)   ; Sets Speaker Mute button to On
 	}
-	else if(channel_type = "ALL") {
+	else if(channel_type = "ALL")
+	{
 		Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Mute", "Float", mute)   ; Sets Speaker Mute button to On
 		Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Mute", "Float", mute)   ; Sets Speaker Mute button to On
 		Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Mute", "Float", mute)   ; Sets Speaker Mute button to On
@@ -501,7 +437,6 @@ SetMuteVolume(channel_type, channel ,osd) {
 	;voicemeeter_show()
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 GetIsEqON(channel_type, channel)
 {
 	is_eq_on := 0.0
@@ -521,7 +456,6 @@ GetIsEqON(channel_type, channel)
 	return is_eq_on                            ; For some reason, not doing this makes the variable unusable              
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 SetEqualizerState(channel_type, channel, osd)
 {
 	if(channel_type = "BUS")
@@ -565,35 +499,35 @@ SetEqualizerState(channel_type, channel, osd)
 	}
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-EQ_OFF(channel) {
+EQ_OFF(channel)
+{
     Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr",  Bus[%channel%].EQ.on, "Float", 0.0)   ; Sets equalizer OFF
 }
 
-GetFullPathName(path) {
+GetFullPathName(path)
+{
     cc := DllCall("GetFullPathName", "str", path, "uint", 0, "ptr", 0, "ptr", 0, "uint")
     VarSetCapacity(buf, cc*(A_IsUnicode?2:1))
     DllCall("GetFullPathName", "str", path, "uint", cc, "str", buf, "ptr", 0, "uint")
     return buf
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-;https://www.myinstants.com
-load_sound_discord_mute() {
+load_sound_discord_mute() ;https://www.myinstants.com
+{
 	global
 	voicemeeter.recorder.gain := 0.0
 	voicemeeter.recorder.load := A_ScriptDir . discord_mute_file
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-load_sound_discord_unmute() {
+load_sound_discord_unmute()
+{
 	global
 	voicemeeter.recorder.gain := 0.0
 	voicemeeter.recorder.load := A_ScriptDir . discord_unmute_file
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-load_sound_vol_up(channel_type, channel) {
+load_sound_vol_up(channel_type, channel)
+{
 	global
 	gain := GetVolume(channel_type, channel)
 	if(gain < -12.0)
@@ -602,8 +536,8 @@ load_sound_vol_up(channel_type, channel) {
 	voicemeeter.recorder.load:= A_ScriptDir . volume_up_file
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-load_sound_vol_down(channel_type, channel) {
+load_sound_vol_down(channel_type, channel)
+{
 	global
 	gain := GetVolume(channel_type, channel)
 	if(gain < -12.0)
@@ -612,7 +546,6 @@ load_sound_vol_down(channel_type, channel) {
 	voicemeeter.recorder.load:= A_ScriptDir . volume_down_file
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 voicemeeter_show()
 {
 	if(voicemeeterVisible = 0)
@@ -627,8 +560,8 @@ voicemeeter_show()
 	}
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-GetCurrentOutput() {
+GetCurrentOutput()
+{
     WaitForNotDirty()                                                                                                     ; Make sure the VoiceMeeter parameters are not dirty before querying anything
 
     a1_active := 0.0                                                                                                      ; Initialize variable
@@ -640,46 +573,62 @@ GetCurrentOutput() {
     return a1_active                             ; For some reason, not doing this makes the variable unusable              
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-SetSpeakersOutput() {
+SetSpeakersOutput()
+{
     Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].A1", "Float", 1.0)   ; Sets Output Channel A1 to On (Speakers On)
     Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].A2", "Float", 0.0)   ; Sets Output Channel A2 to Off (Headphones Off)
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-SetHeadphonesOutput() {
+SetHeadphonesOutput()
+{
     Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].A1", "Float", 0.0)   ; Sets Output Channel A1 to Off (Speakers Off)
     Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].A2", "Float", 1.0)   ; Sets Output Channel A2 to On (Headphones On)
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-restart_audio_engine() {
+restart_audio_engine()
+{
 	global
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Command.Restart", "Int", 1)   ; Sets Speaker Mute button to Off
 	voicemeeter.recorder.load := "C:\AHK\MediaControl\sounds\discord_unmute.mp3"
 }
 
-;=========================================================================================
-; 2ND KEYBOARD USING LUAMACROS
-;=========================================================================================
-;#IfWinActive ahk_exe voicemeeterpro.exe ;---EVERYTHING BELOW THIS LINE WILL ONLY WORK INSIDE PREMIERE PRO. But you can change this to anything you like. You can use Window Spy to determine the ahk_exe of any program, so that your macros will only work when and where you want them to.
+;====================================================================================================================================================
+; KEYBOARD
+;====================================================================================================================================================
 
-;There is no code here. T'was just an example.
+KeyboardInit()
+{
+    Process, Exist, LuaMacros.exe
+	If Not ErrorLevel
+	{
+		Run "C:\AHK\MediaControl\keyboard_lua_script.lua"
+		Sleep, 500
+		Send ^{Enter}
+	}
+	Else
+	{
+		WinActivate, ahk_exe LuaMacros.exe
+	}
+	Return
+}
 
-;#IfWinActive ;---- This will allow for everything below this line to work in ANY application.
+KeyboardName(h)
+{
+	DllCall("GetRawInputDeviceInfo",Int,h,UInt,0x20000007,Int,0,"UInt*",l)
+	VarSetCapacity(Name,l*2+2)
+	DllCall("GetRawInputDeviceInfo",Int,h,UInt,0x20000007,Str,Name,"UInt*",l)
+	return Name
+}
 
 ~F24::
 FileRead, key, C:\AHK\MediaControl\keypressed.txt
-;tippy(key) ;<--- this function will just launch a quick tooltip that shows you what key you pressed. OPTIONAL.
+
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ RESTART AUDIO ENGINE CONTROL
 if(key = "space")
 restart_audio_engine()
 
 if(key = "tab")
 voicemeeter_show()
-
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ OPEN/CLOSE CONTROL
-
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ EQUALIZER CONTROL
 ;.......... PA EQUALIZER
@@ -701,7 +650,6 @@ SetEqualizerState("BUS", BUS_4, "T7 EQ")
 ;.......... HDL EQUALIZER
 else if(key = "F10")
 SetEqualizerState("BUS", BUS_5, "HDL EQ")
-
 
 ;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ MUTE CONTROL
 ;.......... MUTE/UNMUTE SPLIT 0
@@ -878,33 +826,14 @@ else if(key = "right")
 		DefaultAltiumSettings()
 	}
 }
-; CHANNEL 3/4 (BLUETOOTH OUT) -> (Bus 2)
-; else if(key = "e")
-; {
-; 	SetVolume(A3, "up")
-; 	SetVolume(A4, "up")
-; }
-; else if(key = "d")
-; {
-; 	SetVolume(A3, "down")
-; 	SetVolume(A4, "down")
-; }	
-; else if(key = "c")
-; {
-; 	SetVolume(A3, "0")
-; 	SetVolume(A4, "0")
-; }	
-
-;.......... BUS 1
-;else if(key = "u") ;or (key = "num4"))
-;SetVolume(1, "up")
-;else if(key = "j") ;or (key = "num1"))
-;SetVolume(1, "down")
-
 Return ;from luamacros F24
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-sTooltip(sTooltipTxt,seconds=5,bg=0xFFFFE7,fg=0x0,x=-1,y=-1, tt=1) { 
+;====================================================================================================================================================
+; TOOLS
+;====================================================================================================================================================
+
+sTooltip(sTooltipTxt,seconds=5,bg=0xFFFFE7,fg=0x0,x=-1,y=-1, tt=1)
+{ 
    ; (w) derRaphael / zLib Style released 
    if (Seconds+0=0) 
       Seconds = 5 
@@ -946,9 +875,7 @@ sTooltip(sTooltipTxt,seconds=5,bg=0xFFFFE7,fg=0x0,x=-1,y=-1, tt=1) {
    ToolTip 
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-;https://www.autohotkey.com/boards/viewtopic.php?t=48976
-Tippy(tipsHere, wait:=2000)
+Tippy(tipsHere, wait:=2000)	; temporary tooltip maker https://www.autohotkey.com/boards/viewtopic.php?t=48976
 {
 	sFaceName := "Segoe UI"
 	nHeight := 9
@@ -959,15 +886,13 @@ Tippy(tipsHere, wait:=2000)
 	ToolTip, %tipsHere%, toolX, toolY, 8
 	SetTimer, noTip, %wait% ;--in 1/3 seconds by default, remove the tooltip
 }
+
 noTip:
 	ToolTip,,,,8
-	;removes the tooltip
 return
-;;;;;;/temporary tooltip maker;;;;;;
 
-#!g::
-
- Return
+;#!g::
+; Return
 
 GetTextWidth(YourText, sFaceName, nHeight = 9, bBold = False, bItalic = False, bUnderline = False, bStrikeOut = False, nCharSet = 0)
 {
@@ -989,8 +914,18 @@ GetTextWidth(YourText, sFaceName, nHeight = 9, bBold = False, bItalic = False, b
 	Return nWidth
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-f(id,dx,dy,flags,data){
+;====================================================================================================================================================
+; MOUSE
+;====================================================================================================================================================
+
+mouseInit()
+{
+	md := new mouseDelta(func("f"))
+	md.start()
+}
+
+f(id,dx,dy,flags,data)
+{
 	static RI_MOUSE_WHEEL := 0x0400
 	static mice := []
 	static axis := ["y","x"]
@@ -1005,8 +940,8 @@ f(id,dx,dy,flags,data){
 	}
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-myMouseMove(axis,dir){
+myMouseMove(axis,dir)
+{
 	static step_size := 10	; Step size in pixels
 	static sign := -1		; Change to 1 to change the direction of the movements
 	local x:=0, y:=0
@@ -1014,17 +949,18 @@ myMouseMove(axis,dir){
 	mousemove, x, y, 0, R
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Class MouseDelta
 {
 	State := 0
-	__New(callback){
+	__New(callback)
+	{
 		this.MouseMovedFn := this.MouseMoved.Bind(this)
 		this.Callback := callback
 	}
 
 	;------------------------------------------------------------
-	Start(){
+	Start()
+	{
 		static DevSize := 8 + A_PtrSize, RIDEV_INPUTSINK := 0x00000100
 		; Register mouse for WM_INPUT messages.
 		VarSetCapacity(RAWINPUTDEVICE, DevSize)
@@ -1044,7 +980,8 @@ Class MouseDelta
 	}
 	
 	;------------------------------------------------------------
-	Stop(){
+	Stop()
+	{
 		static RIDEV_REMOVE := 0x00000001
 		static DevSize := 8 + A_PtrSize
 		OnMessage(0x00FF, this.MouseMovedFn, 0)
@@ -1056,17 +993,20 @@ Class MouseDelta
 	}
 	
 	;------------------------------------------------------------
-	toggle(){
+	toggle()
+	{
 		return this.setState(!this.state)
 	}
 	
 	;------------------------------------------------------------
-	getState(){
+	getState()
+	{
 		return this.state
 	}
 	
 	;------------------------------------------------------------
-	SetState(state){
+	SetState(state)
+	{
 		if (state && !this.State)
 			this.Start()
 		else if (!state && this.State)
@@ -1075,7 +1015,8 @@ Class MouseDelta
 	}
 	
 	;------------------------------------------------------------
-	Delete(){
+	Delete()
+	{
 		this.Stop()
 		this.MouseMovedFn := ""
 	}
@@ -1366,7 +1307,6 @@ Class MouseDelta
 	}
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 between(string, left, right) {
     if (strLen(left) > 1)    ;# if its a word or sentence
         {
@@ -1390,16 +1330,8 @@ MouseName(h) {
 	return Name
 }
 
-KeyboardName(h) {
-	DllCall("GetRawInputDeviceInfo",Int,h,UInt,0x20000007,Int,0,"UInt*",l)
-	VarSetCapacity(Name,l*2+2)
-	DllCall("GetRawInputDeviceInfo",Int,h,UInt,0x20000007,Str,Name,"UInt*",l)
-	return Name
-}
-
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-;Retrieve info for each device
-get_hid() {
+get_hid()	; Retrieve info for each device
+{ 
 	iCount := AHKHID_GetDevCount()
 	Loop 5 {
 		
@@ -1440,9 +1372,16 @@ get_hid() {
 	}
 }
 
-;~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ second mouse keys
+; second mouse keys
 WheelUp::
 WheelDown::
 XButton1::
 XButton2::
 MButton::
+
+; ------------------------------ Includes --------------------------------------------
+; ------------------------------ Definitions -----------------------------------------
+; ------------------------------ Structures ------------------------------------------
+; ------------------------------ Local Functions -------------------------------------
+; ------------------------------ Variables -------------------------------------------
+; ------------------------------ Implementation --------------------------------------
