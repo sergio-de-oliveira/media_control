@@ -14,7 +14,7 @@ ComponentTypes := "MASTER,HEADPHONES,DIGITAL,LINE,MICROPHONE,SYNTH,CD,TELEPHONE,
 DeviceName := ""
 
 ; Create a ListView and prepare for the main loop:
-Gui, Add, ListView, w400 h400 vMyListView, Component Type|Control Type|Setting|Mixer|Name
+Gui, Add, ListView, w800 h1000 vMyListView, Component Type|Control Type|Setting|Mixer|Name
 LV_ModifyCol(4, "Integer")
 SetFormat, Float, 0.2  ; Limit number of decimal places in percentages to two.
 ;msgbox % "my ahk version: " A_AhkVersion
@@ -56,9 +56,42 @@ Loop  ; For each mixer number that exists in the system, query its capabilities.
                 ComponentString := CurrComponent
                 if (CurrInstance > 1)
                     ComponentString := ComponentString ":" CurrInstance
-                VA_dev := VA_GetDevice(A_Index)
-                DeviceName := VA_GetDeviceName(VA_dev)
+                ;string2 := NumGet(string1) ;convert string to number
+                ;string3 := StrGet(&string2,,"UTF-16") ;convert number back to string
+                ;MsgBox %CurrMixer%
+                CurrMixerNum := StrGet(&CurrMixer,"UTF-16")
+                VA_dev := VA_GetDevice(CurrMixerNum-2) ;device_id | ( friendly_name | 'playback' | 'capture' ) [ ':' index ]
+
+                ;mixerNumber := CurrMixer , Number += 0  ; convert text to number)
+
+                
+                ;    MsgBox %CurrMixer%
+                if(VA_dev != 0)
+                {
+                    if(ComponentString = "MASTER" && CurrControl = "VOLUME")
+                    DeviceName := VA_GetDeviceName(VA_dev)
+
+                    ;if(ComponentString = "MASTER" && CurrControl = "VOLUME")
+                }
+                else
+                {
+                   DeviceName := "???"
+                }
+                ;DeviceName := VA_GetDeviceName(VA_dev)
+                
                 LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+                
+                ; if(DeviceName = "PA (Realtek High Definition Audio)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
+                ;     MsgBox := %CurrMixer%
+                ; if(DeviceName = "FONE (HECATE G1 GAMING HEADSET)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
+                ;     MsgBox := %CurrMixer%
+                ; if(DeviceName = "AIRDOTS (Redmi AirDots_R Stereo)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
+                ;     MsgBox := %CurrMixer%
+                ; if(DeviceName = "T7 (T7 Stereo)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
+                ;     MsgBox := %CurrMixer%
+
+
+                
             }  ; For each control type.
         }  ; For each component instance.
     }  ; For each component type.

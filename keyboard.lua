@@ -5,7 +5,7 @@
 -- plug in your 2nd keyboard, load this script into LUAmacros, and press the triangle PLAY button.
 -- Then, press any key on that keyboard to assign logical name ('MACROS') to macro keyboard
 clear() --clear the console from last run
-local keyboardIdentifier = '0000AAA' -- '0000AAA' -- '884B96C3'
+local keyboardIdentifier = '2583200' -- '0000AAA' -- '2583200'
 
 --You need to get the identifier code for the keyboard with name "MACROS"
 --This appears about halfway through the SystemID item and looks like 1BB382AF or some other alphanumeric combo.

@@ -1,7 +1,6 @@
 scGui := Gui(, "Sound Components")
-scLV := Gui, Add, L istView, "w600 h400", ["Component", "#", "Device", "Volume", "Mute"])
-
-;Gui, Add, ListView, w400 h400 vMyListView, Component Type|Control Type|Setting|Mixer|Name
+scLV := scGui.Add('ListView', "w600 h400"
+    , ["Component", "#", "Device", "Volume", "Mute"])
 
 devMap := Map()
 
@@ -45,8 +44,8 @@ loop
 }
 
 loop 5
-    scLV.ModifyCol(A_Index, "AutoHdr Logical")
-Gui, Show
+    scLV.ModifyCol(A_Index, 'AutoHdr Logical')
+scGui.Show()
 
 ; Qualifies full names with ":index" when needed.
 Qualify(name, names, overallIndex)
