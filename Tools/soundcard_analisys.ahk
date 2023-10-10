@@ -1,8 +1,13 @@
 scGui := Gui(, "Sound Components")
-scLV := scGui.Add('ListView', "w600 h400"
-    , ["Component", "#", "Device", "Volume", "Mute"])
+scLV := scGui.Add('ListView', "w600 h700", ["Component", "#", "Device", "Volume", "Mute"])
 
 devMap := Map()
+
+SoundDeviceFile := "C:\AHK\MediaControl\Tools\SoundDeviceFile.txt"
+try FileDelete SoundDeviceFile  ; In case previous run was terminated prematurely.
+
+; Save := "Hello"
+; FileAppend "TESTE", "C:\AHK\MediaControl\Tools\SoundDeviceFile.txt"
 
 loop
 {
@@ -40,6 +45,8 @@ loop
         ; Display this component even if it does not support volume or mute,
         ; since it likely supports other controls via SoundGetInterface().
         scLV.Add("", Qualify(cmpName, cmpMap, A_Index), dev, devName, vol, mute)
+        FileAppend devName, "C:\AHK\MediaControl\Tools\SoundDeviceFile.txt"
+        FileAppend "`n", "C:\AHK\MediaControl\Tools\SoundDeviceFile.txt"
     }
 }
 

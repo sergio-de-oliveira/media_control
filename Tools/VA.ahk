@@ -366,22 +366,6 @@ VA_GetDevice_Return:
     return device ; may be 0
 }
 
-; VA_GetDeviceName(device)
-; {
-;     static PKEY_Device_FriendlyName
-;     if !VarSetCapacity(PKEY_Device_FriendlyName)
-;         VarSetCapacity(PKEY_Device_FriendlyName, 20)
-;         ,VA_GUID(PKEY_Device_FriendlyName :="{A45C254E-DF1C-4EFD-8020-67D146A850E0}")
-;         ,NumPut(14, PKEY_Device_FriendlyName, 16)
-;     VarSetCapacity(prop, 16)
-;     VA_IMMDevice_OpenPropertyStore(device, 0, store)
-;     ; store->GetValue(.., [out] prop)
-;     DllCall(NumGet(NumGet(store+0)+5*A_PtrSize), "ptr", store, "ptr", &PKEY_Device_FriendlyName, "ptr", &prop)
-;     ObjRelease(store)
-;     VA_WStrOut(deviceName := NumGet(prop,8))
-;     return deviceName
-; }
-
 VA_GetDeviceName(device)
 {
     static PKEY_Device_FriendlyName
@@ -389,14 +373,12 @@ VA_GetDeviceName(device)
         VarSetCapacity(PKEY_Device_FriendlyName, 20)
         ,VA_GUID(PKEY_Device_FriendlyName :="{A45C254E-DF1C-4EFD-8020-67D146A850E0}")
         ,NumPut(14, PKEY_Device_FriendlyName, 16)
-    VarSetCapacity(prop, 24)
-    if VA_IMMDevice_OpenPropertyStore(device, 0, store) = 0
-    {
-        ; store->GetValue(.., [out] prop)
-        if DllCall(NumGet(NumGet(store+0)+5*A_PtrSize), "ptr", store, "ptr", &PKEY_Device_FriendlyName, "ptr", &prop) = 0
-            VA_WStrOut(deviceName := NumGet(prop,8))
-        ObjRelease(store)
-    }
+    VarSetCapacity(prop, 16)
+    VA_IMMDevice_OpenPropertyStore(device, 0, store)
+    ; store->GetValue(.., [out] prop)
+    DllCall(NumGet(NumGet(store+0)+5*A_PtrSize), "ptr", store, "ptr", &PKEY_Device_FriendlyName, "ptr", &prop)
+    ObjRelease(store)
+    VA_WStrOut(deviceName := NumGet(prop,8))
     return deviceName
 }
 

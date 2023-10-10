@@ -1,4 +1,4 @@
-#Include, va.ahk
+#Include va.ahk
 
 SetBatchLines -1
 SplashTextOn,,, Gathering Soundcard Info...
@@ -14,13 +14,14 @@ ComponentTypes := "MASTER,HEADPHONES,DIGITAL,LINE,MICROPHONE,SYNTH,CD,TELEPHONE,
 DeviceName := ""
 
 ; Create a ListView and prepare for the main loop:
-Gui, Add, ListView, w800 h1000 vMyListView, Component Type|Control Type|Setting|Mixer|Name
+Gui, Add, ListView, w800 h700 vMyListView, Component Type|Control Type|Setting|Mixer|Name|VA_dev
 LV_ModifyCol(4, "Integer")
 SetFormat, Float, 0.2  ; Limit number of decimal places in percentages to two.
 ;msgbox % "my ahk version: " A_AhkVersion
 Loop  ; For each mixer number that exists in the system, query its capabilities.
 {
     CurrMixer := A_Index
+    ;MsgBox %CurrMixer%
     SoundGet, Setting,,, %CurrMixer%
 
     if (ErrorLevel = "Can't Open Specified Mixer")  ; Any error other than this indicates that the mixer exists.
@@ -54,41 +55,55 @@ Loop  ; For each mixer number that exists in the system, query its capabilities.
                 if ErrorLevel  ; Some other error, which is unexpected so show it in the results.
                     Setting := ErrorLevel
                 ComponentString := CurrComponent
-                if (CurrInstance > 1)
-                    ComponentString := ComponentString ":" CurrInstance
+                ; if (CurrInstance > 1)
+                ComponentString := ComponentString ":" CurrInstance
                 ;string2 := NumGet(string1) ;convert string to number
                 ;string3 := StrGet(&string2,,"UTF-16") ;convert number back to string
-                ;MsgBox %CurrMixer%
-                CurrMixerNum := StrGet(&CurrMixer,"UTF-16")
-                VA_dev := VA_GetDevice(CurrMixerNum-2) ;device_id | ( friendly_name | 'playback' | 'capture' ) [ ':' index ]
-
+                CurrMixerNum := CurrMixer ;StrGet(&CurrMixer,"UTF-16")
+                ; MsgBox %CurrMixerNum%
+                VA_dev := VA_GetDevice(CurrMixerNum) ;device_id | ( friendly_name | 'playback' | 'capture' ) [ ':' index ]
+                ; MsgBox %VA_dev%
                 ;mixerNumber := CurrMixer , Number += 0  ; convert text to number)
 
-                
-                ;    MsgBox %CurrMixer%
-                if(VA_dev != 0)
-                {
-                    if(ComponentString = "MASTER" && CurrControl = "VOLUME")
-                    DeviceName := VA_GetDeviceName(VA_dev)
+                ; if(ComponentString = "MASTER" && CurrControl = "VOLUME")
+                ; if(VA_dev != 0 && ComponentString = "MASTER" && CurrControl = "VOLUME")
 
+                if(VA_dev != 0) ;if(ComponentString = "MASTER" && CurrControl = "VOLUME")
+                {
+                    
                     ;if(ComponentString = "MASTER" && CurrControl = "VOLUME")
+                    if(Setting != "Off" && Setting != "On" && ComponentString = "MASTER:1" && CurrControl = "VOLUME")
+                        {
+                            DeviceName := VA_GetDeviceName(VA_dev)
+                            LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName, VA_dev)
+                        }
+                        ; if InStr(DeviceName, "Voicemeeter")
+                        ; {
+
+                        ; }
+                        ; Else
+                        ; {
+                        ;     LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+                        ; }
+                    ; if(DeviceName = "PA (Realtek High Definition Audio)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
+                    ;     MsgBox %DeviceName% %CurrMixer%
+                    ; if(DeviceName = "FONE (HECATE G1 GAMING HEADSET)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
+                    ;     MsgBox %DeviceName% %CurrMixer%
+                    ; if(DeviceName = "AIRDOTS (Redmi AirDots_R Stereo)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
+                    ;     MsgBox %DeviceName% %CurrMixer%
+                    ; if(DeviceName = "T7 (T7 Stereo)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
+                    ;     MsgBox %DeviceName% %CurrMixer%
                 }
                 else
                 {
-                   DeviceName := "???"
+                    DeviceName := "OFFLINE"
+                    LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName, VA_dev)
                 }
-                ;DeviceName := VA_GetDeviceName(VA_dev)
+
+                ; DeviceName := VA_GetDeviceName(VA_dev)
+                ; LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
                 
-                LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
-                
-                ; if(DeviceName = "PA (Realtek High Definition Audio)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
-                ;     MsgBox := %CurrMixer%
-                ; if(DeviceName = "FONE (HECATE G1 GAMING HEADSET)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
-                ;     MsgBox := %CurrMixer%
-                ; if(DeviceName = "AIRDOTS (Redmi AirDots_R Stereo)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
-                ;     MsgBox := %CurrMixer%
-                ; if(DeviceName = "T7 (T7 Stereo)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
-                ;     MsgBox := %CurrMixer%
+
 
 
                 

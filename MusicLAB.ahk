@@ -30,10 +30,19 @@
  */
 
 ; ------------------------------ Includes --------------------------------------------
-
-#Include VMR.ahk
-#Include AHKHID.ahk
+#Requires AutoHotkey v1.1
+#Include, VMR.ahk
+#Include, AHKHID.ahk
 #Include, va.ahk
+; #Include sound_card_init.ahk
+
+; Gui, Add, ListView, w800 h400 vMyListView, Component Type|Control Type|Setting|Mixer|Name
+; LV_ModifyCol(4, "Integer")
+; scGui := Gui(, "Sound Components")
+; scLV := scGui.Add('ListView', "w600 h400", ["Component", "#", "Device", "Volume", "Mute"])
+; devMap := Map()
+
+
 
 ; ------------------------------ Definitions -----------------------------------------
 
@@ -62,19 +71,29 @@ global ControlTypes := "VOLUME,ONOFF,MUTE,MONO,LOUDNESS,STEREOENH,BASSBOOST,PAN,
 global ComponentTypes := "MASTER,HEADPHONES,DIGITAL,LINE,MICROPHONE,SYNTH,CD,TELEPHONE,PCSPEAKER,WAVE,AUX,ANALOG,NA"
 global DeviceName := ""
 
-global DEVICE_PA_ID			:= 0
-global DEVICE_HECATE_ID		:= 0
-global DEVICE_AIRDOTS_ID	:= 0
-global DEVICE_T7_ID			:= 0
+global DEVICE_PA_ID				:= 0
+global DEVICE_HECATE_ID			:= 0
+global DEVICE_REDMI_ID			:= 0
+global DEVICE_MI_ID				:= 0
+global DEVICE_T7_ID				:= 0
+global DEVICE_LINE_OUT_ID		:= 0
 
-global DEVICE_PA_ID_OK 		:= 0 ;PA
-global DEVICE_HECATE_ID_OK	:= 0 ;HECATE
-global DEVICE_AIRDOTS_ID_OK := 0 ;AIRDOTS
-global DEVICE_T7_ID_OK 		:= 0 ;T7
+global DEVICE_PA_ID_OK 			:= 0 ;PA
+global DEVICE_HECATE_ID_OK		:= 0 ;HECATE
+global DEVICE_REDMI_ID_OK 		:= 0 ;REDMI
+global DEVICE_MI_ID_OK 			:= 0 ;MI
+global DEVICE_T7_ID_OK 			:= 0 ;T7
+global DEVICE_LINE_OUT_ID_OK	:= 0 ;LINE OUT
 
 ; ---------- VoiceMeeter
+global sss
+global nType
+global szName
+global szHardwareId
 global voicemeeter_path := "C:\Program Files (x86)\VB\Voicemeeter\"
 global voicemeeter_app 	:= "voicemeeter8x64.exe"
+global soundcard_analisys_path := "C:\AHK\MediaControl\"
+global soundcard_analisys_app := "soundcard_analisys.exe"
 
 ;global media_mode	:= 0 
 ;global modeMusic	:= 0
@@ -127,12 +146,14 @@ global WheelMidState := "WheelMid_solto"
 ; global MouseID_sculpt := "\\?\HID#VID_045E&PID_07A5&MI_01&Col01#8&181bbcc8&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd}"
 ; global KeyBoarID_bright := "\\?\HID#VID_04D9&PID_A01C&MI_01&Col01#8&15884e3e&0&0000#{378de44c-56ef-11d1-bc8c-00a0c91405dd}"
 global MouseID_g305 := "HID#VID_046D&PID_C53F&MI_01&Col01#"
+global MouseID_g203 := "HID#VID_046D&PID_C092&MI_00#7&1ff824c5&0&0000#"
 global MouseID_3d := "HID#VID_1BCF&PID_0005#"
 global MouseID_bright := "HID#VID_04D9&PID_A01C&MI_01&Col01#"
 global MouseID_sculpt := "HID#VID_045E&PID_07A5&MI_01&Col01#"
 global KeyBoarID_bright := "HID#VID_04D9&PID_A01C&MI_01&Col01#"
 global Mouse2_ID := ""
 global key
+global DeviceID := 0
 
 ; ------------------------------ Initialization --------------------------------------
 
@@ -142,13 +163,13 @@ voicemeeterInit()
 
 soundCardInit()
 
+OpenSoundcardAnalisys()
+
 mouseInit()
 
-DefaultMusicSettings()	; Set default voicemeeter settings
+DefaultMusicSettings()	; Set default voicemeeter settingsx
 
-KeyboardInit() ; 2nd keyboard with Luamacros: https://www.youtube.com/watch?v=Arn8ExQ2Gjg
-
-;soundCardInit()
+; KeyboardInit() ; 2nd keyboard with Luamacros: https://www.youtube.com/watch?v=Arn8ExQ2Gjg
 
 ; ------------------------------ Implementation --------------------------------------
 
@@ -164,149 +185,317 @@ soundCardCheck:
 }
 
 ;====================================================================================================================================================
-; SOUND CARD
+; SOUND CARD SETUP
 ;====================================================================================================================================================
 soundCardInit()
 {
-	Loop  ; For each mixer number that exists in the system, query its capabilities.
+	; Create a ListView and prepare for the main loop:
+	DEVICE_PA_ID	       	:= 0
+	DEVICE_HECATE_ID		:= 0
+	DEVICE_REDMI_ID			:= 0
+	DEVICE_MI_ID			:= 0
+	DEVICE_T7_ID			:= 0
+	DEVICE_LINE_OUT_ID		:= 0
+	
+	DEVICE_PA_ID_OK 		:= 0 ;PA
+	DEVICE_HECATE_ID_OK		:= 0 ;HECATE
+	DEVICE_REDMI_ID_OK 		:= 0 ;REDMI
+	DEVICE_MI_ID_OK 		:= 0 ;MI
+	DEVICE_T7_ID_OK 		:= 0 ;T7
+	DEVICE_LINE_OUT_ID_OK	:= 0 ;LINE OUT
+
+	Loop
 	{
-		CurrMixer := A_Index
-		SoundGet, Setting,,, %CurrMixer%
-
-		if (ErrorLevel = "Can't Open Specified Mixer")  ; Any error other than this indicates that the mixer exists.
+		FileReadLine, Line, C:\AHK\MediaControl\SoundDeviceFile.txt, %A_Index%
+		if ErrorLevel
 			break
+		; MsgBox, 4, , Line #%A_Index% is "%Line%".  Continue?
+		IfMsgBox, No
+			return
 
-		; For each component type that exists in this mixer, query its instances and control types:
-		Loop, parse, ComponentTypes, `,
+		StringLeft, DeviceID, Line, 2
+		StringRight, DeviceName, Line, StrLen(Line)-3
+
+		; MsgBox, %DeviceID%
+		; MsgBox, %DeviceName%
+
+		if( DeviceName = "FONE (HECATE G1 GAMING HEADSET)" )
 		{
-			CurrComponent := A_LoopField
-			; First check if this component type even exists in the mixer:
-			SoundGet, Setting, %CurrComponent%,, %CurrMixer%
-			if (ErrorLevel = "Mixer Doesn't Support This Component Type")
-				continue  ; Start a new iteration to move on to the next component type.
-			Loop  ; For each instance of this component type, query its control types.
+			if(DEVICE_HECATE_ID_OK = 0)
 			{
-				CurrInstance := A_Index        
-				; First check if this instance of this instance even exists in the mixer:
-				SoundGet, Setting, %CurrComponent%:%CurrInstance%,, %CurrMixer%
-				; Checking for both of the following errors allows this script to run on older versions:
-				if ErrorLevel in Mixer Doesn't Have That Many of That Component Type,Invalid Control Type or Component Type
-					break  ; No more instances of this component type.
-				; Get the current setting of each control type that exists in this instance of this component:
-				Loop, parse, ControlTypes, `,
-				{
-					CurrControl := A_LoopField
-					SoundGet, Setting, %CurrComponent%:%CurrInstance%, %CurrControl%, %CurrMixer%
-
-					; Checking for both of the following errors allows this script to run on older versions:
-					if ErrorLevel in Component Doesn't Support This Control Type,Invalid Control Type or Component Type
-						continue
-					if ErrorLevel  ; Some other error, which is unexpected so show it in the results.
-						Setting := ErrorLevel
-					ComponentString := CurrComponent
-					if (CurrInstance > 1)
-						ComponentString := ComponentString ":" CurrInstance
-					;CurrMixerNum := StrGet(&CurrMixer,"UTF-16") ;string2 := NumGet(string1) ;convert string to number ;string3 := StrGet(&string2,,"UTF-16") ;convert number back to string
-					VA_dev := VA_GetDevice(CurrMixer-2)
-
-					if(VA_dev != 0)
-					{
-						DeviceName := VA_GetDeviceName(VA_dev)
-					}
-					
-					if((DeviceName = "PA (Realtek High Definition Audio)" || DeviceName = "PA (High Definition Audio Device)") && ComponentString = "MASTER" && CurrControl = "VOLUME")
-					{
-						if(DEVICE_PA_ID_OK = 0)
-						{
-							DEVICE_PA_ID_OK = 1
-							DEVICE_PA_ID := CurrMixer-2
-							;MsgBox %DEVICE_PA_ID%
-							;restart_audio_engine()
-						}
-						; else
-						; if(DEVICE_PA_ID_OK = 1)
-						; {
-						; 	if(DEVICE_PA_ID != CurrMixerNum)
-						; 	{
-						; 		DEVICE_PA_ID_OK = 0
-						; 		DEVICE_PA_ID := CurrMixerNum
-						; 		;restart_audio_engine()
-						; 	}
-						; }
-					}
-					else
-					if(DeviceName = "FONE (HECATE G1 GAMING HEADSET)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
-					{
-						if(DEVICE_HECATE_ID_OK = 0)
-						{
-							DEVICE_HECATE_ID_OK = 1
-							DEVICE_HECATE_ID := CurrMixer-2
-							;restart_audio_engine()
-						}
-						; else
-						; if(DEVICE_HECATE_ID_OK = 1)
-						; {
-						; 	if(DEVICE_HECATE_ID != CurrMixer)
-						; 	{
-						; 		DEVICE_HECATE_ID_OK = 0
-						; 		DEVICE_HECATE_ID_OK := CurrMixer
-						; 		;restart_audio_engine()
-						; 	}
-						; }
-					}
-					else
-					if(DeviceName = "AIRDOTS (Redmi AirDots_R Stereo)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
-					{
-						if(DEVICE_AIRDOTS_ID_OK = 0)
-						{
-							DEVICE_AIRDOTS_ID_OK = 1
-							DEVICE_AIRDOTS_ID := CurrMixer-2
-							;restart_audio_engine()
-						}
-						; else
-						; if(DEVICE_AIRDOTS_ID_OK = 1)
-						; {
-						; 	if(DEVICE_AIRDOTS_ID != CurrMixerNum)
-						; 	{
-						; 		;DEVICE_AIRDOTS_ID_OK = 0
-						; 		DEVICE_AIRDOTS_ID := CurrMixerNum
-						; 		;restart_audio_engine()
-						; 	}
-						; }
-					}
-					else
-					if(DeviceName = "T7 (T7 Stereo)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
-					{
-						if(DEVICE_T7_ID_OK = 0)
-						{
-							DEVICE_T7_ID_OK = 1
-							DEVICE_T7_ID := CurrMixer-2
-							;restart_audio_engine()
-						}
-						; else
-						; if(DEVICE_T7_ID_OK = 1)
-						; {
-						; 	if(DEVICE_T7_ID != CurrMixer)
-						; 	{
-						; 		DEVICE_T7_ID_OK = 0
-						; 		DEVICE_T7_ID := CurrMixer
-						; 		;restart_audio_engine()
-						; 	}
-						; }
-					}
-
-					;LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
-				}  ; For each control type.
-			}  ; For each component instance.
-		}  ; For each component type.
-
-	}  ; For each mixer.
-
-	;Loop % LV_GetCount("Col")  ; Auto-size each column to fit its contents.
-	;	LV_ModifyCol(A_Index, "AutoHdr")
-	message := ">>> AUDIO OK <<<"
-	tippy(message)
+				DEVICE_HECATE_ID_OK := 1
+				DEVICE_HECATE_ID := DeviceID
+				; MsgBox %DeviceName% %CurrMixerNum%
+				; LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+			}
+		}
+		if( (DeviceName = "PA (Realtek High Definition Audio)" || DeviceName = "PA (High Definition Audio Device)") )
+		{
+			if(DEVICE_PA_ID_OK = 0)
+			{
+				DEVICE_PA_ID_OK := 1
+				DEVICE_PA_ID := DeviceID
+				; MsgBox %DeviceName% %CurrMixer%
+				; LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+			}
+		}
+		if( DeviceName = "MI (Mi True Wireless EBs Basic 2 Stereo)" )
+		{
+			if(DEVICE_MI_ID_OK = 0)
+			{
+				DEVICE_MI_ID_OK := 1
+				DEVICE_MI_ID := DeviceID
+				;MsgBox %DeviceName% %CurrMixer%
+				; LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+			}
+		}
+		if( DeviceName = "Fones de ouvido (Redmi AirDots_R Stereo)" )
+		{
+			if(DEVICE_REDMI_ID_OK = 0)
+			{
+				DEVICE_REDMI_ID_OK := 1
+				DEVICE_REDMI_ID := DeviceID
+				;MsgBox %DeviceName% %CurrMixer%
+				; LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+			}
+		}
+		if( DeviceName = "T7 (T7 Stereo)" )
+		{
+			if(DEVICE_T7_ID_OK = 0)
+			{
+				DEVICE_T7_ID_OK := 1
+				DEVICE_T7_ID := DeviceID
+				;MsgBox %DeviceName% %CurrMixer%
+				; LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+			}
+		}
+		if( (DeviceName = "LINE_OUT (Generic USB Audio Device)" || DeviceName = "LINE_OUT (USB PnP Sound Device)") )
+		{
+			if(DEVICE_LINE_OUT_ID_OK = 0)
+			{
+				DEVICE_LINE_OUT_ID_OK := 1
+				DEVICE_LINE_OUT_ID := DeviceID
+				;MsgBox %DeviceName% %CurrMixer%
+				; LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+			}
+		}
+	}
 }
+
+
+;====================================================================================================================================================
+; SOUND CARD
+;====================================================================================================================================================
+; soundCardInit()
+; {
+; 	; Create a ListView and prepare for the main loop:
+; 	DEVICE_PA_ID	       	:= 0
+; 	DEVICE_HECATE_ID		:= 0
+; 	DEVICE_REDMI_ID			:= 0
+; 	DEVICE_MI_ID			:= 0
+; 	DEVICE_T7_ID			:= 0
+; 	DEVICE_LINE_OUT_ID		:= 0
+	
+; 	DEVICE_PA_ID_OK 		:= 0 ;PA
+; 	DEVICE_HECATE_ID_OK		:= 0 ;HECATE
+; 	DEVICE_REDMI_ID_OK 		:= 0 ;REDMI
+; 	DEVICE_MI_ID_OK 		:= 0 ;MI
+; 	DEVICE_T7_ID_OK 		:= 0 ;T7
+; 	DEVICE_LINE_OUT_ID_OK	:= 0 ;LINE OUT
+; 	Loop  ; For each mixer number that exists in the system, query its capabilities.
+; 	{
+; 		CurrMixer := A_Index
+; 		SoundGet, Setting,,, %CurrMixer%
+
+; 		if (ErrorLevel = "Can't Open Specified Mixer")  ; Any error other than this indicates that the mixer exists.
+; 			break
+
+; 		; For each component type that exists in this mixer, query its instances and control types:
+; 		Loop, parse, ComponentTypes, `,
+; 		{
+; 			CurrComponent := A_LoopField
+; 			; First check if this component type even exists in the mixer:
+; 			SoundGet, Setting, %CurrComponent%,, %CurrMixer%
+; 			if (ErrorLevel = "Mixer Doesn't Support This Component Type")
+; 				continue  ; Start a new iteration to move on to the next component type.
+; 			Loop  ; For each instance of this component type, query its control types.
+; 			{
+; 				CurrInstance := A_Index        
+; 				; First check if this instance of this instance even exists in the mixer:
+; 				SoundGet, Setting, %CurrComponent%:%CurrInstance%,, %CurrMixer%
+; 				; Checking for both of the following errors allows this script to run on older versions:
+; 				if ErrorLevel in Mixer Doesn't Have That Many of That Component Type,Invalid Control Type or Component Type
+; 					break  ; No more instances of this component type.
+; 				; Get the current setting of each control type that exists in this instance of this component:
+; 				Loop, parse, ControlTypes, `,
+; 				{
+; 					CurrControl := A_LoopField
+; 					SoundGet, Setting, %CurrComponent%:%CurrInstance%, %CurrControl%, %CurrMixer%
+
+; 					; Checking for both of the following errors allows this script to run on older versions:
+; 					if ErrorLevel in Component Doesn't Support This Control Type,Invalid Control Type or Component Type
+; 						continue
+; 					if ErrorLevel  ; Some other error, which is unexpected so show it in the results.
+; 						Setting := ErrorLevel
+; 					ComponentString := CurrComponent
+; 					if (CurrInstance > 1)
+; 						ComponentString := ComponentString ":" CurrInstance
+; 					;CurrMixerNum := StrGet(&CurrMixer,"UTF-16") ;string2 := NumGet(string1) ;convert string to number ;string3 := StrGet(&string2,,"UTF-16") ;convert number back to string
+; 					; CurrMixerNum := StrGet(&CurrMixer,"UTF-8")
+; 					; MsgBox %CurrMixer%
+; 					CurrMixerNum := CurrMixer
+;                 	VA_dev := VA_GetDevice(CurrMixerNum)
+; 					; MsgBox VA_dev: %VA_dev%, CurrMixer: %CurrMixerNum%
+
+; 					if(VA_dev = 0)
+; 					{
+; 						DeviceName := "OFFLINE"
+; 						LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+; 					}
+; 					else ;if(ComponentString = "MASTER" && CurrControl = "VOLUME")						
+; 					{
+; 						; MsgBox VA_dev: %VA_dev%, CurrMixer: %CurrMixerNum%
+; 						; if(ComponentString = "MASTER" && CurrControl = "VOLUME")
+; 						; {
+; 							DeviceName := VA_GetDeviceName(VA_dev)
+; 							;LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+; 							; MsgBox %DeviceName% %CurrMixer%
+; 							if(DeviceName = "FONE (HECATE G1 GAMING HEADSET)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
+; 							{
+; 								if(DEVICE_HECATE_ID_OK = 0)
+; 								{
+; 									DEVICE_HECATE_ID_OK := 1
+; 									DEVICE_HECATE_ID := CurrMixerNum
+; 									; MsgBox %DeviceName% %CurrMixerNum%
+; 									LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+; 								}
+; 							}
+; 							if((DeviceName = "PA (Realtek High Definition Audio)" || DeviceName = "PA (High Definition Audio Device)") && ComponentString = "MASTER" && CurrControl = "VOLUME")
+; 							{
+; 								if(DEVICE_PA_ID_OK = 0)
+; 								{
+; 									DEVICE_PA_ID_OK := 1
+; 									DEVICE_PA_ID := CurrMixerNum
+; 									; MsgBox %DeviceName% %CurrMixer%
+; 									LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+; 								}
+; 							}
+; 							if(DeviceName = "MI (Mi True Wireless EBs Basic 2 Stereo)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
+; 							{
+; 								if(DEVICE_MI_ID_OK = 0)
+; 								{
+; 									DEVICE_MI_ID_OK := 1
+; 									DEVICE_MI_ID := CurrMixerNum
+; 									;MsgBox %DeviceName% %CurrMixer%
+; 									LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+; 								}
+; 							}
+; 							if(DeviceName = "REDMI (Redmi AirDots_R Stereo)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
+; 							{
+; 								if(DEVICE_REDMI_ID_OK = 0)
+; 								{
+; 									DEVICE_REDMI_ID_OK := 1
+; 									DEVICE_REDMI_ID := CurrMixerNum
+; 									;MsgBox %DeviceName% %CurrMixer%
+; 									LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+; 								}
+; 							}
+; 							if(DeviceName = "T7 (T7 Stereo)" && ComponentString = "MASTER" && CurrControl = "VOLUME")
+; 							{
+; 								if(DEVICE_T7_ID_OK = 0)
+; 								{
+; 									DEVICE_T7_ID_OK := 1
+; 									DEVICE_T7_ID := CurrMixerNum
+; 									;MsgBox %DeviceName% %CurrMixer%
+; 									LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+; 								}
+; 							}
+; 							if( (DeviceName = "LINE_OUT (Generic USB Audio Device)" || DeviceName = "LINE_OUT (USB PnP Sound Device)") && ComponentString = "MASTER" && CurrControl = "VOLUME" )
+; 							{
+; 								if(DEVICE_LINE_OUT_ID_OK = 0)
+; 								{
+; 									DEVICE_LINE_OUT_ID_OK := 1
+; 									DEVICE_LINE_OUT_ID := CurrMixerNum
+; 									;MsgBox %DeviceName% %CurrMixer%
+; 									LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+; 								}
+; 							}
+; 						; }
+; 						; MsgBox %ComponentString% %CurrControl% %Setting% %CurrMixer% %DeviceName%
+; 						;LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+; 					}
+; 					;LV_Add("", ComponentString, CurrControl, Setting, CurrMixer, DeviceName)
+; 				}  ; For each control type.
+; 			}  ; For each component instance.
+; 		}  ; For each component type.
+; 	}  ; For each mixer.
+
+; 	;Loop % LV_GetCount("Col")  ; Auto-size each column to fit its contents.
+; 	;	LV_ModifyCol(A_Index, "AutoHdr")
+
+; 	; Loop % LV_GetCount("Col")  ; Auto-size each column to fit its contents.
+; 	; 	LV_ModifyCol(A_Index, "AutoHdr")
+
+; 	Gui, Show
+
+; 	delay_time := 100
+; 	message := "..............."
+; 	tippy(message)
+; 	Sleep, delay_time
+; 	message := ".......<>......"
+; 	tippy(message)
+; 	Sleep, delay_time
+; 	message := "......<<>>......"
+; 	tippy(message)
+; 	Sleep, delay_time
+; 	message := ".....<<<>>>....."
+; 	tippy(message)
+; 	Sleep, delay_time
+; 	message := "....<<<IC>>>...."
+; 	tippy(message)
+; 	Sleep, delay_time
+; 	message := "...<<<SICL>>>..."
+; 	tippy(message)
+; 	Sleep, delay_time
+; 	message := "..<<<USICLA>>>.."
+; 	tippy(message)
+; 	Sleep, delay_time
+; 	message := ".<<<MUSICLAB>>>."
+; 	tippy(message)
+; 	Sleep, delay_time
+
+; 	;MsgBox %DEVICE_PA_ID% %DEVICE_HECATE_ID% %DEVICE_AIRDOTS_ID% %DEVICE_T7_ID%
+; 	; rep := voicemeeter.VBVMR_Output_GetDeviceDescA(1, &nType, szName, szHardwareId)
+; 	; if (rep == 0)
+; 	; {
+; 	; 	switch nType
+; 	; 	{
+; 	; 		case VBVMR_DEVTYPE_MME:
+; 	; 			;sprintf(sss,"MME: %s",szName)
+; 	; 			;tippy(sss)
+; 	; 			;tippy(sprintf("%p%n","Int",65, "Int",&szName))
+; 	; 			return
+; 	; 		case VBVMR_DEVTYPE_WDM:
+; 	; 			;sprintf(sss,"WDM: %s",szName)
+; 	; 			;tippy(sss)
+; 	; 			;tippy(sprintf("%p%n","Int",65, "Int",&szName))
+; 	; 			return
+; 	; 		case VBVMR_DEVTYPE_KS:
+; 	; 			;sprintf(sss,"KS: %s",szName)
+; 	; 			;tippy(sss)
+; 	; 			;tippy(sprintf("%p%n","Int",65, "Int",&szName))
+; 	; 			return
+; 	; 		case VBVMR_DEVTYPE_ASIO:
+; 	; 			;sprintf(sss,"ASIO: %s",szName)
+; 	; 			;tippy(sss)
+; 	; 			;tippy(sprintf("%p%n","Int",65, "Int",&szName))
+; 	; 			return
+; 	; 	}
+; 	; 	;tippy(message)
+; 	; }
+; 	; tippy("OK!!!!!!!!!!!!!!!!!!")
+; 	; MsgBox %DEVICE_HECATE_ID% %DEVICE_PA_ID%
+; }
 
 ;====================================================================================================================================================
 ; VOICEMEETER
@@ -342,20 +531,20 @@ DefaultMusicSettings()
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].A1", "Float", 1.0)
 
 	; Gain slider
-    Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Gain", "Float", 12.0)   ; Set the Microphone
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 0.0)   ; Set the HDL Line In volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Gain", "Float", -60.0)  ; Set the Imput3 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].Gain", "Float", -60.0)  ; Set the Imput4 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[4].Gain", "Float", -60.0)  ; Set the Imput5 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[5].Gain", "Float", 0.0)    ; Set the voicemeeter VAIO volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[6].Gain", "Float", 0.0)  ; Set the voicemeeter AUX volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[7].Gain", "Float", 0.0)  ; Set the voicemeeter VAIO 3 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[0].Gain", "Float", 0.0)      ; Set the PA output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[1].Gain", "Float", 0.0)      ; Set the PHONE output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[2].Gain", "Float", 0.0)      ; Set the EAR output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[3].Gain", "Float", 0.0)      ; Set the T7 output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[4].Gain", "Float", 0.0)      ; Set the HDL output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[5].Gain", "Float", 0.0)      ; Set the HDL output volume
+    ; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Gain", "Float", 12.0)   ; Set the Microphone
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 0.0)   ; Set the HDL Line In volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Gain", "Float", -60.0)  ; Set the Imput3 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].Gain", "Float", -60.0)  ; Set the Imput4 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[4].Gain", "Float", -60.0)  ; Set the Imput5 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[5].Gain", "Float", 0.0)    ; Set the voicemeeter VAIO volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[6].Gain", "Float", 0.0)  ; Set the voicemeeter AUX volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[7].Gain", "Float", 0.0)  ; Set the voicemeeter VAIO 3 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[0].Gain", "Float", 0.0)      ; Set the PA output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[1].Gain", "Float", 0.0)      ; Set the PHONE output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[2].Gain", "Float", 0.0)      ; Set the EAR output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[3].Gain", "Float", 0.0)      ; Set the T7 output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[4].Gain", "Float", 0.0)      ; Set the HDL output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[5].Gain", "Float", 0.0)      ; Set the HDL output volume
 
 	; Mute Button
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Mute", "Float", 1.0)    ; Set Imput3 Mute
@@ -372,8 +561,8 @@ DefaultMusicSettings()
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[2].EQ.on", "Float", 1.0)     ; Sets EAR equalizer ON
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[3].EQ.on", "Float", 1.0)     ; Sets T7 equalizer ON
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[4].EQ.on", "Float", 1.0)     ; Sets HDL equalizer ON
-	show_message = "MUSIC MODE"
-	tippy(show_message)
+	; show_message = "MUSIC MODE"
+	; tippy(show_message)
 }
 
 DefaultLemaSettings()
@@ -382,20 +571,20 @@ DefaultLemaSettings()
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].A1", "Float", 0.0)
 
 	; Gain slider
-    Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Gain", "Float", 12.0)   ; Set the Microphone
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 0.0)   ; Set the HDL Line In volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Gain", "Float", -60.0)  ; Set the Imput3 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].Gain", "Float", -60.0)  ; Set the Imput4 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[4].Gain", "Float", -60.0)  ; Set the Imput5 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[5].Gain", "Float", 0.0)    ; Set the voicemeeter VAIO volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[6].Gain", "Float", 0.0)  ; Set the voicemeeter AUX volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[7].Gain", "Float", 0.0)  ; Set the voicemeeter VAIO 3 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[0].Gain", "Float", 0.0)      ; Set the PA output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[1].Gain", "Float", 0.0)      ; Set the PHONE output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[2].Gain", "Float", 0.0)      ; Set the EAR output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[3].Gain", "Float", 0.0)      ; Set the T7 output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[4].Gain", "Float", 0.0)      ; Set the HDL output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[5].Gain", "Float", 0.0)      ; Set the HDL output volume
+    ; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Gain", "Float", 12.0)   ; Set the Microphone
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 0.0)   ; Set the HDL Line In volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Gain", "Float", -60.0)  ; Set the Imput3 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].Gain", "Float", -60.0)  ; Set the Imput4 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[4].Gain", "Float", -60.0)  ; Set the Imput5 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[5].Gain", "Float", 0.0)    ; Set the voicemeeter VAIO volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[6].Gain", "Float", 0.0)  ; Set the voicemeeter AUX volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[7].Gain", "Float", 0.0)  ; Set the voicemeeter VAIO 3 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[0].Gain", "Float", 0.0)      ; Set the PA output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[1].Gain", "Float", 0.0)      ; Set the PHONE output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[2].Gain", "Float", 0.0)      ; Set the EAR output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[3].Gain", "Float", 0.0)      ; Set the T7 output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[4].Gain", "Float", 0.0)      ; Set the HDL output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[5].Gain", "Float", 0.0)      ; Set the HDL output volume
 
 	; Mute Button
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Mute", "Float", 1.0)    ; Set Imput3 Mute
@@ -412,8 +601,8 @@ DefaultLemaSettings()
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[2].EQ.on", "Float", 1.0)     ; Sets EAR equalizer ON
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[3].EQ.on", "Float", 1.0)     ; Sets T7 equalizer ON
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[4].EQ.on", "Float", 1.0)     ; Sets HDL equalizer ON
-	show_message = "LEMA MODE"
-	tippy(show_message)
+	; show_message = "LEMA MODE"
+	; tippy(show_message)
 }
 
 DefaultAltiumSettings()
@@ -422,20 +611,20 @@ DefaultAltiumSettings()
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].A1", "Float", 1.0)
 
 	; Gain slider
-    Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Gain", "Float", 12.0)   ; Set the Microphone
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 0.0)   ; Set the HDL Line In volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Gain", "Float", -60.0)  ; Set the Imput3 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].Gain", "Float", -60.0)  ; Set the Imput4 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[4].Gain", "Float", -60.0)  ; Set the Imput5 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[5].Gain", "Float", 0.0)    ; Set the voicemeeter VAIO volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[6].Gain", "Float", 0.0)  ; Set the voicemeeter AUX volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[7].Gain", "Float", 0.0)  ; Set the voicemeeter VAIO 3 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[0].Gain", "Float", 0.0)      ; Set the PA output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[1].Gain", "Float", 0.0)      ; Set the PHONE output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[2].Gain", "Float", 0.0)      ; Set the EAR output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[3].Gain", "Float", 0.0)      ; Set the T7 output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[4].Gain", "Float", 0.0)      ; Set the HDL output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[5].Gain", "Float", 0.0)      ; Set the HDL output volume
+    ; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Gain", "Float", 12.0)   ; Set the Microphone
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 0.0)   ; Set the HDL Line In volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Gain", "Float", -60.0)  ; Set the Imput3 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].Gain", "Float", -60.0)  ; Set the Imput4 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[4].Gain", "Float", -60.0)  ; Set the Imput5 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[5].Gain", "Float", 0.0)    ; Set the voicemeeter VAIO volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[6].Gain", "Float", 0.0)  ; Set the voicemeeter AUX volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[7].Gain", "Float", 0.0)  ; Set the voicemeeter VAIO 3 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[0].Gain", "Float", 0.0)      ; Set the PA output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[1].Gain", "Float", 0.0)      ; Set the PHONE output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[2].Gain", "Float", 0.0)      ; Set the EAR output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[3].Gain", "Float", 0.0)      ; Set the T7 output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[4].Gain", "Float", 0.0)      ; Set the HDL output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[5].Gain", "Float", 0.0)      ; Set the HDL output volume
 
 	; Mute Button
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Mute", "Float", 1.0)    ; Set Imput3 Mute
@@ -452,8 +641,8 @@ DefaultAltiumSettings()
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[2].EQ.on", "Float", 1.0)     ; Sets EAR equalizer ON
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[3].EQ.on", "Float", 1.0)     ; Sets T7 equalizer ON
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[4].EQ.on", "Float", 1.0)     ; Sets HDL equalizer ON
-	show_message = "ALTIUM MODE"
-	tippy(show_message)
+	; show_message = "ALTIUM MODE"
+	; tippy(show_message)
 }
 
 DefaultDrumSettings()
@@ -462,20 +651,20 @@ DefaultDrumSettings()
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].A1", "Float", 1.0)
 
 	; Gain slider
-    Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Gain", "Float", 12.0)   ; Set the Microphone
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 0.0)   ; Set the HDL Line In volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Gain", "Float", -60.0)  ; Set the Imput3 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].Gain", "Float", -60.0)  ; Set the Imput4 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[4].Gain", "Float", -60.0)  ; Set the Imput5 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[5].Gain", "Float", 0.0)    ; Set the voicemeeter VAIO volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[6].Gain", "Float", -60.0)  ; Set the voicemeeter AUX volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[7].Gain", "Float", -60.0)  ; Set the voicemeeter VAIO 3 volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[0].Gain", "Float", 0.0)      ; Set the PA output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[1].Gain", "Float", 0.0)      ; Set the PHONE output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[2].Gain", "Float", 0.0)      ; Set the EAR output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[3].Gain", "Float", 0.0)      ; Set the T7 output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[4].Gain", "Float", 0.0)      ; Set the HDL output volume
-	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[5].Gain", "Float", 0.0)      ; Set the HDL output volume
+    ; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[0].Gain", "Float", 12.0)   ; Set the Microphone
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[1].Gain", "Float", 0.0)   ; Set the HDL Line In volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Gain", "Float", -60.0)  ; Set the Imput3 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[3].Gain", "Float", -60.0)  ; Set the Imput4 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[4].Gain", "Float", -60.0)  ; Set the Imput5 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[5].Gain", "Float", 0.0)    ; Set the voicemeeter VAIO volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[6].Gain", "Float", -60.0)  ; Set the voicemeeter AUX volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[7].Gain", "Float", -60.0)  ; Set the voicemeeter VAIO 3 volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[0].Gain", "Float", 0.0)      ; Set the PA output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[1].Gain", "Float", 0.0)      ; Set the PHONE output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[2].Gain", "Float", 0.0)      ; Set the EAR output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[3].Gain", "Float", 0.0)      ; Set the T7 output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[4].Gain", "Float", 0.0)      ; Set the HDL output volume
+	; Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[5].Gain", "Float", 0.0)      ; Set the HDL output volume
 
 	; Mute Button
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Strip[2].Mute", "Float", 1.0)    ; Set Imput3 Mute
@@ -492,8 +681,8 @@ DefaultDrumSettings()
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[2].EQ.on", "Float", 1.0)     ; Sets EAR equalizer ON
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[3].EQ.on", "Float", 1.0)     ; Sets T7 equalizer ON
 	Result := DllCall("VoicemeeterRemote64\VBVMR_SetParameterFloat", "AStr", "Bus[4].EQ.on", "Float", 1.0)     ; Sets HDL equalizer ON
-	show_message = "DRUM MODE"
-	tippy(show_message)
+	; show_message = "DRUM MODE"
+	; tippy(show_message)
 }
 
 VMLogin()
@@ -691,9 +880,9 @@ SetMuteVolume(channel_type, channel, osd)
 		NumPut(0.0, mute, 0, "Float")                                                                                     ; Force it to be a float
 		;show_message = IN %channel% ON
 		show_message = %osd% UNMUTE
-		tippy(show_message)
-		if(!(channel_type = "BUS" && channel = BUS_3 && channel = BUS_4))
-			load_sound_discord_unmute()
+		;tippy(show_message)
+		;if(!(channel_type = "BUS" && channel = BUS_3 && channel = BUS_4))
+			;load_sound_discord_unmute()
 	}
 	else
 	{
@@ -701,9 +890,9 @@ SetMuteVolume(channel_type, channel, osd)
 		NumPut(1.0, mute, 1, "Float")                                                                                     ; Force it to be a float
 		;show_message = IN %channel% OFF
 		show_message = %osd% MUTE
-		tippy(show_message)
-		if(!(channel_type = "BUS" && channel = BUS_3 && channel = BUS_4))
-			load_sound_discord_mute()
+		;tippy(show_message)
+		;if(!(channel_type = "BUS" && channel = BUS_3 && channel = BUS_4))
+			;load_sound_discord_mute()
 		if(channel_type = "BUS" && channel = BUS_1)
 		{
 			Sleep, 300
@@ -894,9 +1083,27 @@ restart_audio_engine()
 }
 
 ;====================================================================================================================================================
+; GET AUDIO DEVICES IDS
+;====================================================================================================================================================
+OpenSoundcardAnalisys()
+{
+    IfWinNotExist ahk_exe %soundcard_analisys_app%   ; If VoiceMeeter is already running, bring it up from the Tray and bring it to Foreground
+    ; {
+    ;     WinShow ahk_exe %voicemeeter_app%
+    ;     WinActivate ahk_exe %voicemeeter_app%   ; Sometimes WinShow does not bring it in front of say, Spotify. So running WinActivate right after gives it focus and brings it all the way to the foreground
+    ; }
+    ; else   ; If VoiceMeeter is NOT running, run the .exe, wait for it to launch, then show and bring foreground
+    {
+		Run %soundcard_analisys_app%
+        WinWait ahk_exe %soundcard_analisys_app%
+        ;WinActivate ahk_exe %soundcard_analisys_app%
+		;WinShow
+		Return
+    }
+}
+;====================================================================================================================================================
 ; KEYBOARD
 ;====================================================================================================================================================
-
 KeyboardInit()
 {
     Process, Exist, LuaMacros.exe
@@ -1052,6 +1259,7 @@ MusicModeKeyboard()
 	{
 		restart_audio_engine()
 		soundCardInit()
+		OpenSoundcardAnalisys()
 	}
 	else if(key = "tab")
 		voicemeeter_show()
@@ -1274,7 +1482,6 @@ Return ;from luamacros F24
 ;====================================================================================================================================================
 ; TOOLS
 ;====================================================================================================================================================
-
 MediaModeRigth()
 {
 	if (MediaMode > 0)
@@ -1408,7 +1615,6 @@ GetTextWidth(YourText, sFaceName, nHeight = 9, bBold = False, bItalic = False, b
 ;====================================================================================================================================================
 ; MOUSE
 ;====================================================================================================================================================
-
 mouseInit()
 {
 	md := new mouseDelta(func("f"))
@@ -1575,44 +1781,110 @@ Class MouseDelta
 		;MsgBox, %MouseID%
 		;MsgBox, %Mouse%
 		;MsgBox, %usButtonFlags%
-
+		;MsgBox, %usButtonData%
 		If (RegExMatch(Mouse, MouseID_3d))
 		{
 			if (usButtonData = 120) ;whell up
 			{
-				if(DEVICE_PA_ID > 0)
+				;MsgBox %DEVICE_PA_ID% %DEVICE_HECATE_ID% %DEVICE_LINE_OUT_ID%
+				if(DEVICE_PA_ID_OK = 1)
 					SoundSet, +2 , MASTER, VOLUME, DEVICE_PA_ID ;PA
-				if(DEVICE_HECATE_ID > 0)
+				if(DEVICE_HECATE_ID_OK = 1)
 					SoundSet, +2 , MASTER, VOLUME, DEVICE_HECATE_ID ;HECATE
-				if(DEVICE_AIRDOTS_ID > 0)
-					SoundSet, +2 , MASTER, VOLUME, DEVICE_AIRDOTS_ID ;AIRDOTS
-				if(DEVICE_T7_ID > 0)
+				if(DEVICE_REDMI_ID_OK = 1)
+					SoundSet, +2 , MASTER, VOLUME, DEVICE_REDMI_ID ;REDMI
+				if(DEVICE_MI_ID_OK = 1)
+					SoundSet, +2 , MASTER, VOLUME, DEVICE_MI_ID ;MI
+				if(DEVICE_T7_ID_OK = 1)
 					SoundSet, +2 , MASTER, VOLUME, DEVICE_T7_ID ;T7
+				if(DEVICE_LINE_OUT_ID_OK = 1)
+					SoundSet, +2 , MASTER, VOLUME, DEVICE_LINE_OUT_ID ;LINE OUT
 			} 
 			else if (usButtonData = -120) ;whell down
 			{
-				if(DEVICE_PA_ID > 0)
+				if(DEVICE_PA_ID_OK = 1)
 					SoundSet, -2 , MASTER, VOLUME, DEVICE_PA_ID ;PA
-				if(DEVICE_HECATE_ID > 0)
+				if(DEVICE_HECATE_ID_OK = 1)
 					SoundSet, -2 , MASTER, VOLUME, DEVICE_HECATE_ID ;HECATE
-				if(DEVICE_AIRDOTS_ID > 0)
-					SoundSet, -2 , MASTER, VOLUME, DEVICE_AIRDOTS_ID ;AIRDOTS
-				if(DEVICE_T7_ID > 0)
+				if(DEVICE_REDMI_ID_OK = 1)
+					SoundSet, -2 , MASTER, VOLUME, DEVICE_REDMI_ID ;REDMI
+				if(DEVICE_MI_ID_OK = 1)
+					SoundSet, -2 , MASTER, VOLUME, DEVICE_MI_ID ;MI				
+				if(DEVICE_T7_ID_OK = 1)
 					SoundSet, -2 , MASTER, VOLUME, DEVICE_T7_ID ;T7
+				if(DEVICE_LINE_OUT_ID_OK = 1)
+					SoundSet, -2 , MASTER, VOLUME, DEVICE_LINE_OUT_ID ;LINE OUT
 			}
 			else if (usButtonFlags = 256) ;botao forwad
 			{
-				MediaModeLeft()
-				;Send {Media_Next}
+				restart_audio_engine()
+				soundCardInit()
+				OpenSoundcardAnalisys()
 			}
 			else if (usButtonFlags = 64) ;botao backward
 			{
-				MediaModeRigth()
-				;Send {Media_Prev}
+				; MouseMove, 200, 100
+				if(audioSourceMute = 0)				
+				{
+					audioSourceMute = 1
+					if(!GetIsMuted("STRIP", IN_2))
+						SetMuteVolume("STRIP", IN_2, "TABLET")
+					if(GetIsMuted("STRIP", IN_6))
+						SetMuteVolume("STRIP", IN_6, "PC AUDIO")
+				}
+				else
+				{
+					audioSourceMute = 0			
+					if(GetIsMuted("STRIP", IN_2))
+						SetMuteVolume("STRIP", IN_2, "TABLET")
+					if(!GetIsMuted("STRIP", IN_6))
+						SetMuteVolume("STRIP", IN_6, "PC AUDIO")
+				}
 			}
 			else if (usButtonFlags = 32) ;whell click down
 			{
+				;DllCall("SetCursorPos", "int", 100, "int", 400)  ; The first number is the X-coordinate and the second is the Y (relative to the screen).
 				;Send {Media_Play_Pause}
+				; MouseMove, 200, 100
+				if(audioSourceMute = 0)				
+					{
+						audioSourceMute = 1
+						;.......... MUTE/UNMUTE BUS 0
+						if(!GetIsMuted("BUS", BUS_1))
+							SetMuteVolume("BUS", BUS_1, "PA OUT")
+					
+						;.......... MUTE/UNMUTE BUS 1
+						if(!GetIsMuted("BUS", BUS_2))
+							SetMuteVolume("BUS", BUS_2, "FONE OUT")
+					
+						;.......... MUTE/UNMUTE BUS 2
+						if(!GetIsMuted("BUS", BUS_3))
+						SetMuteVolume("BUS", BUS_3, "EAR OUT")
+					
+						;.......... MUTE/UNMUTE BUS 3
+						if(!GetIsMuted("BUS", BUS_4))
+							SetMuteVolume("BUS", BUS_4, "T7 OUT")
+					}
+					else
+					{
+						audioSourceMute = 0			
+						;.......... MUTE/UNMUTE BUS 0
+						if(GetIsMuted("BUS", BUS_1))
+							SetMuteVolume("BUS", BUS_1, "PA OUT")
+					
+						;.......... MUTE/UNMUTE BUS 1
+						if(GetIsMuted("BUS", BUS_2))
+							SetMuteVolume("BUS", BUS_2, "FONE OUT")
+					
+						;.......... MUTE/UNMUTE BUS 2
+						if(GetIsMuted("BUS", BUS_3))
+						SetMuteVolume("BUS", BUS_3, "EAR OUT")
+					
+						;.......... MUTE/UNMUTE BUS 3
+						if(GetIsMuted("BUS", BUS_4))
+							SetMuteVolume("BUS", BUS_4, "T7 OUT")
+					}
+
 			}
 		}
 		If RegExMatch(Mouse, MouseID_bright)
@@ -1623,8 +1895,10 @@ Class MouseDelta
 					SoundSet, +2 , MASTER, VOLUME, DEVICE_PA_ID ;PA
 				if(DEVICE_HECATE_ID > 0)
 					SoundSet, +2 , MASTER, VOLUME, DEVICE_HECATE_ID ;HECATE
-				if(DEVICE_AIRDOTS_ID > 0)
-					SoundSet, +2 , MASTER, VOLUME, DEVICE_AIRDOTS_ID ;AIRDOTS
+				if(DEVICE_REDMI_ID > 0)
+					SoundSet, +2 , MASTER, VOLUME, DEVICE_REDMI_ID ;REDMI
+				if(DEVICE_MI_ID > 0)
+					SoundSet, +2 , MASTER, VOLUME, DEVICE_MI_ID ;MI
 				if(DEVICE_T7_ID > 0)
 					SoundSet, +2 , MASTER, VOLUME, DEVICE_T7_ID ;T7
 			} 
@@ -1634,8 +1908,10 @@ Class MouseDelta
 					SoundSet, -2 , MASTER, VOLUME, DEVICE_PA_ID ;PA
 				if(DEVICE_HECATE_ID > 0)
 					SoundSet, -2 , MASTER, VOLUME, DEVICE_HECATE_ID ;HECATE
-				if(DEVICE_AIRDOTS_ID > 0)
-					SoundSet, -2 , MASTER, VOLUME, DEVICE_AIRDOTS_ID ;AIRDOTS
+				if(DEVICE_REDMI_ID > 0)
+					SoundSet, -2 , MASTER, VOLUME, DEVICE_REDMI_ID ;REDMI
+				if(DEVICE_MI_ID > 0)
+					SoundSet, -2 , MASTER, VOLUME, DEVICE_MI_ID ;MI
 				if(DEVICE_T7_ID > 0)
 					SoundSet, -2 , MASTER, VOLUME, DEVICE_T7_ID ;T7
 			}
@@ -1652,7 +1928,7 @@ Class MouseDelta
 				;Send {Media_Play_Pause}
 			}
 		}
-		If RegExMatch(Mouse, MouseID_g305) || RegExMatch(Mouse, MouseID_sculpt)
+		If RegExMatch(Mouse, MouseID_g305) || RegExMatch(Mouse, MouseID_g203) || RegExMatch(Mouse, MouseID_sculpt)
 		{
 		 	if (usButtonData = 120) ;whell up
 			{
@@ -1672,100 +1948,100 @@ Class MouseDelta
 			}
 			else if (usButtonFlags = 32) ;whell click up
 			{
-				if (WheelMidState != "WheelMid_solto")
-				{
-					if(GetKeyState("LShift", "P"))
-					{
-						Send {LShift Up}
-					}
-					if(GetKeyState("Ctrl", "P"))
-					{
-						Send {LCtrl Up}
-					}
-				}
-				;Send {RButton Up}
-  				WheelMidState := "WheelMid_solto"
+				; if (WheelMidState != "WheelMid_solto")
+				; {
+				; 	if(GetKeyState("LShift", "P"))
+				; 	{
+				; 		Send {LShift Up}
+				; 	}
+				; 	if(GetKeyState("Ctrl", "P"))
+				; 	{
+				; 		Send {LCtrl Up}
+				; 	}
+				; }
+				; ;Send {RButton Up}
+  				; WheelMidState := "WheelMid_solto"
 			}
 			else if (usButtonFlags = 16) ;whell click up
 			{
-				if (WheelMidState != "WheelMid_clicado")
-				{
-					MouseClick, middle
-					if(GetKeyState("LShift", "P"))
-					{
-						Send {LShift Up}
-					}
-					if(GetKeyState("Ctrl", "P"))
-					{
-						Send {LCtrl Up}
-					}
-				}
-				;Send {RButton Up}
-  				WheelMidState := "WheelMid_clicado"
+				; if (WheelMidState != "WheelMid_clicado")
+				; {
+				; 	MouseClick, middle
+				; 	if(GetKeyState("LShift", "P"))
+				; 	{
+				; 		Send {LShift Up}
+				; 	}
+				; 	if(GetKeyState("Ctrl", "P"))
+				; 	{
+				; 		Send {LCtrl Up}
+				; 	}
+				; }
+				; ;Send {RButton Up}
+  				; WheelMidState := "WheelMid_clicado"
 			}
 			else if (usButtonFlags = 8) ;botao direito solto------------------------------------------------------------
 			{
-				if (RButtonState != "RButtonState_solto")
-				{
-					if(GetKeyState("LShift", "P"))
-					{
-						Send {LShift Up}
-					}
-					if(GetKeyState("Ctrl", "P"))
-					{
-						Send {LCtrl Up}
-					}
-				}
-				;Send {RButton Up}
-  				RButtonState := "RButtonState_solto"	
+				; if (RButtonState != "RButtonState_solto")
+				; {
+				; 	if(GetKeyState("LShift", "P"))
+				; 	{
+				; 		Send {LShift Up}
+				; 	}
+				; 	if(GetKeyState("Ctrl", "P"))
+				; 	{
+				; 		Send {LCtrl Up}
+				; 	}
+				; }
+				; ;Send {RButton Up}
+  				; RButtonState := "RButtonState_solto"	
 			}
 			else if (usButtonFlags = 4) ;botao direito clicado------------------------------------------------------------
 			{
-				if (RButtonState != "RButtonState_clicado")
-				{
-					if(GetKeyState("LShift", "P"))
-					{
-						Send {LShift Down}
-					}
-					if(GetKeyState("LCtrl", "P"))
-					{
-						Send {LCtrl Down}
-					}
-				}
-				;Send {RButton Down}
-				RButtonState := "RButtonState_clicado"
+				; if (RButtonState != "RButtonState_clicado")
+				; {
+				; 	if(GetKeyState("LShift", "P"))
+				; 	{
+				; 		Send {LShift Down}
+				; 	}
+				; 	if(GetKeyState("LCtrl", "P"))
+				; 	{
+				; 		Send {LCtrl Down}
+				; 	}
+				; }
+				; ;Send {RButton Down}
+				; RButtonState := "RButtonState_clicado"
 			}
 			else if (usButtonFlags = 2) ;botao esquerdo solto------------------------------------------------------------
 			{
-				if (LButtonState != "LButtonState_solto")
-				{
-					if(GetKeyState("Shift", "P"))
-					{
-						Send {LShift Up}
-					}
-					if(GetKeyState("Ctrl", "P"))
-					{
-						Send {LCtrl Up}
-					}
-				}
-				;Send {LButton Up}
-  				LButtonState := "LButtonState_solto"			
+				; if (LButtonState != "LButtonState_solto")
+				; {
+				; 	if(GetKeyState("Shift", "P"))
+				; 	{
+				; 		Send {LShift Up}
+				; 	}
+				; 	if(GetKeyState("Ctrl", "P"))
+				; 	{
+				; 		Send {LCtrl Up}
+				; 	}
+				; }
+				; ;Send {LButton Up}
+  				; LButtonState := "LButtonState_solto"			
 			}
 			else if (usButtonFlags = 1) ;botao esquerdo clicado------------------------------------------------------------
 			{
-				if (LButtonState != "LButtonState_clicado")
-				{
-					if(GetKeyState("Shift", "P"))
-					{
-						Send {LShift Down}
-					}
-					if(GetKeyState("Ctrl", "P"))
-					{
-						Send {LCtrl Down}
-					}
-				}
-				;Send {LButton Down}
-				LButtonState := "LButtonState_clicado"
+				; if (LButtonState != "LButtonState_clicado")
+				; {
+				; 	if(GetKeyState("Shift", "P"))
+				; 	{
+				; 		Send {LShift Down}
+				; 	}
+				; 	if(GetKeyState("Ctrl", "P"))
+				; 	{
+				; 		Send {LCtrl Down}
+				; 	}
+				; }
+				; ;Send {LButton Down}
+				; LButtonState := "LButtonState_clicado"
 			}
 		}
 		; else if(HID1_Name == KeyBoarID_bright)
@@ -1846,10 +2122,52 @@ get_hid()	; Retrieve info for each device
 
 ; second mouse keys
 WheelUp::
+	; KeyWait, WheelUp, D ; wait for MMB to be released
+	; sendinput {WheelUp up}	
+return
+
 WheelDown::
+	; KeyWait, WheelDown, D ; wait for MMB to be pressed down
+	; sendinput {WheelDown down}
+return
+
 XButton1::
+return
+
 XButton2::
+return
+
 MButton::
+	KeyWait, MButton, D ; wait for MMB to be pressed down
+	sendinput {MButton down}
+
+	KeyWait, MButton ; wait for MMB to be released
+	sendinput {MButton up}	
+return
+
+Shift::
+	KeyWait, LShift, D ; wait for MMB to be pressed down
+	sendinput {LShift down}
+
+	KeyWait, LShift ; wait for MMB to be released
+	sendinput {LShift up}	
+return
+
+Ctrl::
+	KeyWait, LControl, D ; wait for MMB to be pressed down
+	sendinput {LControl down}
+
+	KeyWait, LControl ; wait for MMB to be released
+	sendinput {LControl up}	
+return
+
+; Shift & MButton::
+; 	KeyWait, MButton, D ; wait for MMB to be pressed down
+; 	sendinput {MButton down}{LShift down}
+
+; 	KeyWait, MButton ; wait for MMB to be released
+; 	sendinput {MButton up}{LShift up}		
+; return
 
 ; ------------------------------ Includes --------------------------------------------
 ; ------------------------------ Definitions -----------------------------------------
